@@ -39,15 +39,12 @@ graphics.off()
 # ------------------------------------------------------------
 
 FILE <- file.path(
-  "C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026",
-  "Main Data",
-  "Main_Data_Files",
+  "data",
   "fig01_source_data_historical_pipeline.xlsx"
 )
 
 OUT <- file.path(
-  "C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026",
-  "Main Data",
+  "outputs",
   "Figure_01"
 )
 
