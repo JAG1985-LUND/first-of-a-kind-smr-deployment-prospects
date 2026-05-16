@@ -1,14 +1,22 @@
-
-
-# ============================================================
-# FIGURE 3 — GLOBAL ONLY (DESIGNS WITH VENDOR TARGETS ONLY)
-# FINAL • CLEAN • LOCKED
-# - Uses SMR column for labels
-# - Keeps only designs with non-missing vendor_target
-# - Global panel only
-# - Vendor FOAK target milestone included
-# - No panel tag
-# ============================================================
+# Code for the manuscript Gordon, J.A., Kazlou, T., Jewell, J. and Cherp, A.
+# First-of-a-Kind deployment prospects for small modular reactors
+#
+# Reproduces Figure 3: FOAK deployment timelines for SMR designs with
+# vendor-stated targets.
+#
+# Horizontal bars show observed project progression from conceptual design
+# onwards, by development phase, from 1984 to 2025. Purple circles indicate
+# conceptual-design start years, and black crosses indicate vendor-stated FOAK
+# targets. Grey and green points with horizontal error bars show modelled FOAK
+# deployment medians and P10-P90 ranges under the Baseline and Accelerated
+# scenarios, respectively. The vertical dashed line marks 2050.
+#
+# Required input:
+# data/fig03_source_data_vendor_targets.xlsx
+#
+# Outputs:
+# outputs/Figure_03/fig03_vendor_targets.png
+# outputs/Figure_03/fig03_vendor_targets.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -20,16 +28,70 @@ suppressPackageStartupMessages({
   library(tibble)
 })
 
+rm(list = ls())
+graphics.off()
+
+# ============================================================
+# FIGURE 3 — VENDOR TARGETS AND MODELLED FOAK DEPLOYMENT
+# ============================================================
+
 # ----------------------------
-# PATHS
+# PROJECT PATHS
 # ----------------------------
-FILE <- "C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026/fig03_source_data_vendor_targets.xlsx"
-FIG3_ROOT <- "C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026/Figure_03"
+
+LOCAL_BASE_DIR <- "C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026/Main Data"
+
+LOCAL_FILE <- file.path(
+  LOCAL_BASE_DIR,
+  "Main_Data_Files",
+  "fig03_source_data_vendor_targets.xlsx"
+)
+
+LOCAL_OUT <- file.path(
+  dirname(LOCAL_BASE_DIR),
+  "Figure_03"
+)
+
+REPO_FILE <- file.path(
+  "data",
+  "fig03_source_data_vendor_targets.xlsx"
+)
+
+REPO_OUT <- file.path(
+  "outputs",
+  "Figure_03"
+)
+
+if (file.exists(REPO_FILE)) {
+  FILE <- REPO_FILE
+  FIG3_ROOT <- REPO_OUT
+} else if (file.exists(LOCAL_FILE)) {
+  FILE <- LOCAL_FILE
+  FIG3_ROOT <- LOCAL_OUT
+} else {
+  stop(
+    "Input file not found in either expected location:\n",
+    "1) ", REPO_FILE, "\n",
+    "2) ", LOCAL_FILE
+  )
+}
+
 dir.create(FIG3_ROOT, recursive = TRUE, showWarnings = FALSE)
+
+# ----------------------------
+# EXPORT SETTINGS
+# ----------------------------
+
+SAVE_W_MM <- 180
+SAVE_H_MM <- 198
+SAVE_DPI  <- 600
+
+OUT_BASE <- "fig03_vendor_targets"
 
 # ----------------------------
 # CONSTANTS
 # ----------------------------
+
 HIST_MIN <- 1984
 HIST_MAX <- 2025.99
 FUT_MIN  <- 2026
@@ -58,8 +120,6 @@ ST_VENDOR   <- 0.90
 SH_BASE <- 17
 SH_ACC  <- 18
 
-MARG_IN <- margin(1, 4, 1, 4)
-
 ops_names <- c("HTR-PM", "KLT-40S", "RITM-200")
 
 PHASE_COLS <- c(
@@ -76,12 +136,19 @@ PHASE_KEY <- tibble(
   ord   = 1:5
 )
 
+# ----------------------------
+# HELPERS
+# ----------------------------
+
 axis_theme <- theme(
   axis.line.x = element_line(colour = "grey35", linewidth = 0.3),
-  axis.line.y = element_line(colour = "grey35", linewidth = 0.3)
+  axis.line.y = element_line(colour = "grey35", linewidth = 0.3),
+  axis.ticks  = element_line(colour = "grey35", linewidth = 0.3)
 )
 
-clean_key <- function(x) toupper(gsub("[^A-Z0-9]", "", as.character(x)))
+clean_key <- function(x) {
+  toupper(gsub("[^A-Z0-9]", "", as.character(x)))
+}
 
 first_non_na <- function(x) {
   x <- x[!is.na(x)]
@@ -97,6 +164,7 @@ has_content <- function(x) {
 # ----------------------------
 # LOAD DATA
 # ----------------------------
+
 df0 <- read_excel(FILE)
 names(df0) <- gsub("\\s+", "_", names(df0))
 
@@ -110,7 +178,10 @@ df0 <- df0 %>%
   mutate(
     design = paste0(as.character(SMR), " (", Country, ")"),
     Phase  = as.character(Phase),
-    across(c(CD_Start, BD_Start, DD_Start, Lic_Start, Con_Start, P10, P50, P90, vendor_target), as.numeric),
+    across(
+      c(CD_Start, BD_Start, DD_Start, Lic_Start, Con_Start, P10, P50, P90, vendor_target),
+      as.numeric
+    ),
     is_ops_row = clean_key(SMR) %in% ops_key,
     is_operational_row = is_ops_row | (tolower(Phase) == "operational")
   )
@@ -125,8 +196,9 @@ df <- df0 %>%
   semi_join(vendor_designs, by = "design")
 
 # ----------------------------
-# PANEL FUNCTION
+# MAIN PANEL
 # ----------------------------
+
 make_panel <- function(df, fut_min, show_x = TRUE) {
   
   design_oper <- df %>%
@@ -168,8 +240,11 @@ make_panel <- function(df, fut_min, show_x = TRUE) {
     pull(design) %>%
     rev()
   
-  df_base <- df_base %>% mutate(design = factor(design, levels = y_levels))
-  df_acc  <- df_acc  %>% mutate(design = factor(design, levels = y_levels))
+  df_base <- df_base %>%
+    mutate(design = factor(design, levels = y_levels))
+  
+  df_acc <- df_acc %>%
+    mutate(design = factor(design, levels = y_levels))
   
   df_long <- df_base %>%
     select(design, is_operational, CD_Start, BD_Start, DD_Start, Lic_Start, Con_Start, P50) %>%
@@ -186,7 +261,7 @@ make_panel <- function(df, fut_min, show_x = TRUE) {
     ungroup() %>%
     mutate(
       start = pmax(pmin(start, HIST_MAX), HIST_MIN),
-      end   = pmax(pmin(end,   HIST_MAX), HIST_MIN)
+      end   = pmax(pmin(end, HIST_MAX), HIST_MIN)
     )
   
   df_seg <- df_long %>%
@@ -208,8 +283,10 @@ make_panel <- function(df, fut_min, show_x = TRUE) {
       end   = VLINE_X
     )
   
-  df_base_nonop <- df_base %>% filter(!is_operational)
-  df_acc_nonop  <- df_acc %>%
+  df_base_nonop <- df_base %>%
+    filter(!is_operational)
+  
+  df_acc_nonop <- df_acc %>%
     left_join(select(df_base, design, is_operational), by = "design") %>%
     filter(!is_operational)
   
@@ -287,229 +364,173 @@ make_panel <- function(df, fut_min, show_x = TRUE) {
       breaks = c(1990, 2000, 2010, 2020, 2030, 2040, 2050),
       expand = expansion(mult = c(0, 0.02))
     ) +
-    labs(x = if (show_x) "Year" else NULL, y = "SMR designs (Country)") +
+    labs(
+      x = if (show_x) "Year" else NULL,
+      y = "SMR designs (Country)"
+    ) +
     theme_classic(base_size = 7) +
     axis_theme +
     theme(
-      axis.text.y = element_text(size = 6.5),
-      axis.text.x = element_text(size = 7),
-      axis.title.x = element_text(size = 8),
-      axis.title.y = element_text(size = 8),
+      axis.text.y = element_text(size = 6.5, colour = "black"),
+      axis.text.x = element_text(size = 7, colour = "grey20"),
+      axis.title.x = element_text(size = 8, colour = "black"),
+      axis.title.y = element_text(size = 8, colour = "black"),
       legend.position = "none",
-      plot.margin = MARG_IN,
+      plot.margin = margin(t = 1, r = 4, b = 0, l = 4),
       plot.background  = element_rect(fill = "white", colour = NA),
       panel.background = element_rect(fill = "white", colour = NA)
     )
 }
 
 # ----------------------------
-# CUSTOM LEGEND BLOCKS
+# FIXED BOTTOM LEGEND
 # ----------------------------
 
-make_dev_block <- function(phases, y_step = 0.68) {
-  n <- length(phases)
-  ys <- rev(seq_len(n)) * y_step
-  title_y <- max(ys) + 0.45
+make_bottom_legend <- function() {
   
-  df_lines <- tibble(
-    phase = phases,
-    y     = ys
+  x_title <- -0.040
+  
+  y_phase <- 0.74
+  y_mile  <- 0.50
+  y_scen  <- 0.26
+  
+  legend_shift <- -0.025
+  
+  x_sym_1 <- 0.155 + legend_shift
+  x_txt_1 <- 0.190 + legend_shift
+  
+  x_sym_2 <- 0.500 + legend_shift
+  x_txt_2 <- 0.540 + legend_shift
+  
+  key_len <- 0.028
+  
+  phase_x <- c(
+    x_sym_1 - key_len / 2,
+    0.350 + legend_shift,
+    0.500 + legend_shift,
+    0.675 + legend_shift,
+    0.820 + legend_shift
   )
   
-  ggplot(df_lines) +
-    annotate(
-      "text",
-      x = 0.01, y = title_y,
-      label = "Development phase",
-      hjust = 0, vjust = 1,
-      size = 3.3
-    ) +
-    geom_segment(
-      aes(x = 0.03, xend = 0.14, y = y, yend = y, colour = phase),
-      linewidth = 2.0,
-      lineend = "butt"
-    ) +
-    geom_text(
-      aes(x = 0.19, y = y, label = phase),
-      hjust = 0, vjust = 0.5,
-      size = 3.0,
-      colour = "black"
-    ) +
-    scale_colour_manual(values = PHASE_COLS[phases], guide = "none") +
-    coord_cartesian(
-      xlim = c(0, 1.02),
-      ylim = c(0.22, title_y + 0.10),
-      clip = "off"
-    ) +
-    theme_void() +
-    theme(
-      plot.margin = margin(0, 0, 0, 0),
-      plot.background = element_rect(fill = "white", colour = NA)
-    )
-}
-
-make_mile_block <- function() {
-  df_mile <- tibble(
-    label = c("Conceptual design start year", "Vendor FOAK target"),
-    y     = c(1.85, 1.05)
-  )
-  
-  title_y <- 2.55
+  phase_txt <- phase_x + key_len + 0.014
   
   ggplot() +
-    annotate(
-      "text",
-      x = 0.01, y = title_y,
-      label = "Milestones",
-      hjust = 0, vjust = 1,
-      size = 3.3
-    ) +
-    geom_point(
-      data = df_mile[1, ],
-      aes(x = 0.08, y = y),
-      colour = COL_START,
-      size = 4.0
-    ) +
-    geom_point(
-      data = df_mile[2, ],
-      aes(x = 0.08, y = y),
-      shape = 4,
-      stroke = 0.90,
-      size = 4.6,
-      colour = "black"
-    ) +
-    geom_text(
-      data = df_mile,
-      aes(x = 0.20, y = y, label = label),
-      hjust = 0, vjust = 0.5,
-      size = 3.0,
-      colour = "black"
-    ) +
-    coord_cartesian(
-      xlim = c(0, 1.02),
-      ylim = c(0.35, title_y + 0.10),
-      clip = "off"
-    ) +
+    coord_cartesian(xlim = c(0, 1), ylim = c(0, 1), clip = "off") +
     theme_void() +
     theme(
-      plot.margin = margin(0, 0, 0, 0),
-      plot.background = element_rect(fill = "white", colour = NA)
-    )
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0),
+      plot.background = element_rect(fill = "white", colour = NA),
+      panel.background = element_rect(fill = "white", colour = NA)
+    ) +
+    
+    annotate("text", x = x_title, y = y_phase, label = "Phase",
+             hjust = 0, vjust = 0.5, size = 2.25, colour = "black") +
+    annotate("segment", x = phase_x[1], xend = phase_x[1] + key_len,
+             y = y_phase, yend = y_phase, linewidth = 2.0,
+             colour = PHASE_COLS["Conceptual design"], lineend = "butt") +
+    annotate("text", x = phase_txt[1], y = y_phase, label = "Conceptual design",
+             hjust = 0, vjust = 0.5, size = 2.05, colour = "black") +
+    
+    annotate("segment", x = phase_x[2], xend = phase_x[2] + key_len,
+             y = y_phase, yend = y_phase, linewidth = 2.0,
+             colour = PHASE_COLS["Basic design"], lineend = "butt") +
+    annotate("text", x = phase_txt[2], y = y_phase, label = "Basic design",
+             hjust = 0, vjust = 0.5, size = 2.05, colour = "black") +
+    
+    annotate("segment", x = phase_x[3], xend = phase_x[3] + key_len,
+             y = y_phase, yend = y_phase, linewidth = 2.0,
+             colour = PHASE_COLS["Detailed design"], lineend = "butt") +
+    annotate("text", x = phase_txt[3], y = y_phase, label = "Detailed design",
+             hjust = 0, vjust = 0.5, size = 2.05, colour = "black") +
+    
+    annotate("segment", x = phase_x[4], xend = phase_x[4] + key_len,
+             y = y_phase, yend = y_phase, linewidth = 2.0,
+             colour = PHASE_COLS["Licensing"], lineend = "butt") +
+    annotate("text", x = phase_txt[4], y = y_phase, label = "Licensing",
+             hjust = 0, vjust = 0.5, size = 2.05, colour = "black") +
+    
+    annotate("segment", x = phase_x[5], xend = phase_x[5] + key_len,
+             y = y_phase, yend = y_phase, linewidth = 2.0,
+             colour = PHASE_COLS["Construction"], lineend = "butt") +
+    annotate("text", x = phase_txt[5], y = y_phase, label = "Construction",
+             hjust = 0, vjust = 0.5, size = 2.05, colour = "black") +
+    
+    annotate("text", x = x_title, y = y_mile, label = "Milestones",
+             hjust = 0, vjust = 0.5, size = 2.25, colour = "black") +
+    annotate("point", x = x_sym_1, y = y_mile,
+             colour = COL_START, size = 2.8) +
+    annotate("text", x = x_txt_1, y = y_mile,
+             label = "Conceptual design start year",
+             hjust = 0, vjust = 0.5, size = 2.25, colour = "black") +
+    annotate("point", x = x_sym_2, y = y_mile,
+             shape = 4, stroke = 0.90, size = 4.2, colour = "black") +
+    annotate("text", x = x_txt_2, y = y_mile,
+             label = "Vendor FOAK target",
+             hjust = 0, vjust = 0.5, size = 2.25, colour = "black") +
+    
+    annotate("text", x = x_title, y = y_scen, label = "Scenario",
+             hjust = 0, vjust = 0.5, size = 2.25, colour = "black") +
+    annotate("segment", x = x_sym_1 - 0.025, xend = x_sym_1 + 0.030,
+             y = y_scen, yend = y_scen, linewidth = 1.0,
+             colour = COL_BASE, lineend = "butt") +
+    annotate("point", x = x_sym_1, y = y_scen,
+             shape = SH_BASE, size = 2.7, colour = COL_BASE) +
+    annotate("text", x = x_txt_1, y = y_scen,
+             label = "Baseline FOAK median\n(P10-P90 interval)",
+             hjust = 0, vjust = 0.5, size = 2.25,
+             colour = "black", lineheight = 0.92) +
+    
+    annotate("segment", x = x_sym_2 - 0.025, xend = x_sym_2 + 0.030,
+             y = y_scen, yend = y_scen, linewidth = 1.0,
+             colour = COL_ACC, lineend = "butt") +
+    annotate("point", x = x_sym_2, y = y_scen,
+             shape = SH_ACC, size = 2.7, colour = COL_ACC) +
+    annotate("text", x = x_txt_2, y = y_scen,
+             label = "Accelerated FOAK median\n(P10-P90 interval)",
+             hjust = 0, vjust = 0.5, size = 2.25,
+             colour = "black", lineheight = 0.92)
 }
-
-make_scen_block <- function() {
-  labels <- c(
-    "Baseline FOAK median\n(P10–P90 interval)",
-    "Accelerated FOAK median\n(P10–P90 interval)"
-  )
-  
-  df_scen <- tibble(
-    label = labels,
-    y     = c(1.95, 1.10),
-    col   = c(COL_BASE, COL_ACC),
-    pch   = c(SH_BASE, SH_ACC)
-  )
-  
-  title_y <- 2.65
-  
-  ggplot() +
-    annotate(
-      "text",
-      x = 0.01, y = title_y,
-      label = "Scenario",
-      hjust = 0, vjust = 1,
-      size = 3.3
-    ) +
-    geom_segment(
-      data = df_scen,
-      aes(x = 0.03, xend = 0.15, y = y, yend = y),
-      linewidth = 1.0,
-      colour = df_scen$col,
-      lineend = "butt"
-    ) +
-    geom_point(
-      data = df_scen,
-      aes(x = 0.09, y = y),
-      shape = df_scen$pch,
-      size = 2.8,
-      colour = df_scen$col
-    ) +
-    geom_text(
-      data = df_scen,
-      aes(x = 0.20, y = y, label = label),
-      hjust = 0, vjust = 0.5,
-      size = 2.85,
-      colour = "black",
-      lineheight = 0.95
-    ) +
-    coord_cartesian(
-      xlim = c(0, 1.02),
-      ylim = c(0.35, title_y + 0.10),
-      clip = "off"
-    ) +
-    theme_void() +
-    theme(
-      plot.margin = margin(0, 0, 0, 0),
-      plot.background = element_rect(fill = "white", colour = NA)
-    )
-}
-
-final_fig <- cowplot::plot_grid(
-  p_main, leg,
-  ncol = 2,
-  rel_widths = c(0.69, 0.31),
-  align = "h",
-  axis = "tb"
-)
-
 
 # ----------------------------
 # BUILD FIGURE
 # ----------------------------
-p_main <- make_panel(df, FUT_MIN, TRUE)
 
-phases_legend <- c(
-  "Conceptual design",
-  "Basic design",
-  "Detailed design",
-  "Licensing",
-  "Construction"
-)
+p_main   <- make_panel(df, FUT_MIN, TRUE)
+p_legend <- make_bottom_legend()
 
-leg <- cowplot::plot_grid(
-  NULL,
-  make_dev_block(phases_legend, y_step = 0.68),
-  NULL,
-  make_mile_block(),
-  NULL,
-  make_scen_block(),
-  NULL,
+final_fig <- plot_grid(
+  p_main,
+  p_legend,
   ncol = 1,
-  rel_heights = c(0.02, 0.26, 0.015, 0.12, 0.015, 0.15, 0.42)
+  rel_heights = c(1, 0.115),
+  align = "v",
+  axis = "lr"
 )
 
-final_fig <- cowplot::plot_grid(
-  p_main, leg,
-  ncol = 2,
-  rel_widths = c(0.70, 0.30),
-  align = "h",
-  axis = "tb"
-)
+print(final_fig)
 
 # ----------------------------
 # SAVE
 # ----------------------------
-w_in <- 180 / 25.4
-h_in <- 230 / 25.4
 
 ggsave(
-  file.path(FIG3_ROOT, "fig03_vendor_targets.png"),
-  final_fig,
-  width = w_in, height = h_in, dpi = 600, bg = "white"
+  filename = file.path(FIG3_ROOT, paste0(OUT_BASE, ".png")),
+  plot = final_fig,
+  width = SAVE_W_MM,
+  height = SAVE_H_MM,
+  units = "mm",
+  dpi = SAVE_DPI,
+  bg = "white"
 )
 
 ggsave(
-  file.path(FIG3_ROOT, "fig03_vendor_targets.pdf"),
-  final_fig,
-  width = w_in, height = h_in, bg = "white", useDingbats = FALSE
+  filename = file.path(FIG3_ROOT, paste0(OUT_BASE, ".pdf")),
+  plot = final_fig,
+  width = SAVE_W_MM,
+  height = SAVE_H_MM,
+  units = "mm",
+  bg = "white",
+  useDingbats = FALSE
 )
+
+final_fig
