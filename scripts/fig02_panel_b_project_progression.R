@@ -12,7 +12,7 @@
 # whiskers showing P10-P90 intervals.
 #
 # Required input:
-# data/fig02_source_data_foak_framework.xlsx
+# data/Main_Figures/fig02_source_data_foak_framework.xlsx
 #   - sheet: project_progression
 #
 # Outputs:
@@ -37,42 +37,40 @@ graphics.off()
 
 # ============================================================
 # FIGURE 2 — PANEL B ONLY
-# FINAL CLEAN SCRIPT
-# - Reads project_progression sheet directly
-# - Row labels: P10/P50/P90
-# - Baseline FOAK = grey triangle + grey interval
-# - Accelerated FOAK = green diamond + green interval
-# - Scenario labels centred on P50 rows
-# - Panel label b moved fully inside figure
+# Project-progression pathways from source workbook
 # ============================================================
 
 # ------------------------------------------------------------
 # FILE PATHS
 # ------------------------------------------------------------
-FILE_CANDIDATES <- c(
-  "C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026/fig02_source_data_foak_framework.xlsx",
-  "C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026/Main Data/fig02_source_data_foak_framework.xlsx",
-  "C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026/Main Data/Main_R_Files/fig02_source_data_foak_framework.xlsx",
-  "C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026/Main Data/Main_Data_Files/fig02_source_data_foak_framework.xlsx"
+
+DATA_DIR <- file.path("data", "Main_Figures")
+
+FILE <- file.path(
+  DATA_DIR,
+  "fig02_source_data_foak_framework.xlsx"
 )
 
-FILE <- FILE_CANDIDATES[file.exists(FILE_CANDIDATES)][1]
+OUT_DIR <- file.path(
+  "outputs",
+  "Figure_02",
+  "intermediate"
+)
 
-if (is.na(FILE)) {
-  stop(
-    paste0(
-      "Could not find fig02_source_data_foak_framework.xlsx in any candidate path:\n",
-      paste(FILE_CANDIDATES, collapse = "\n")
-    )
-  )
+if (!file.exists(FILE)) {
+  stop("Input file not found: ", FILE)
 }
 
-OUT_DIR <- "C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026/Figure_02"
-dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+dir.create(
+  OUT_DIR,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
 # ------------------------------------------------------------
+
 SAVE_DPI    <- 600
 SAVE_W_MM_B <- 110
 SAVE_H_MM_B <- 62
@@ -82,6 +80,7 @@ FILE_STUB_B <- "fig02_panel_b_project_progression"
 # ------------------------------------------------------------
 # TYPOGRAPHY
 # ------------------------------------------------------------
+
 BASE_SIZE        <- 7
 AXIS_TEXT_SIZE   <- 6.5
 AXIS_TITLE_SIZE  <- 7
@@ -91,6 +90,7 @@ SCEN_LABEL_SIZE  <- 3.0
 # ------------------------------------------------------------
 # COLOURS
 # ------------------------------------------------------------
+
 phase_colors <- c(
   "Conceptual design" = "#FDE0D2",
   "Basic design"      = "#F4A582",
@@ -111,6 +111,7 @@ SH_ACC  <- 18
 # ------------------------------------------------------------
 # HELPERS
 # ------------------------------------------------------------
+
 clean_names_local <- function(x) {
   x <- trimws(x)
   x <- gsub("[[:space:][:punct:]]+", "_", x)
@@ -122,6 +123,7 @@ clean_names_local <- function(x) {
 # ============================================================
 # READ DATA
 # ============================================================
+
 sheet_name <- readxl::excel_sheets(FILE)
 sheet_name <- sheet_name[str_detect(tolower(sheet_name), "project_progression")][1]
 
@@ -202,6 +204,7 @@ if (nrow(dat_b) != length(order_top_to_bottom)) {
 # ============================================================
 # PLOTTING DATA
 # ============================================================
+
 plot_df_b <- dat_b %>%
   transmute(
     y,
@@ -258,6 +261,7 @@ B_X_MAX <- max(dat_b$FOAK_P90, na.rm = TRUE) + 0.8
 # ============================================================
 # PANEL B CORE
 # ============================================================
+
 p_b_core <- ggplot() +
   geom_segment(
     data = plot_df_b,
@@ -388,6 +392,7 @@ p_b_core <- ggplot() +
 # ============================================================
 # PANEL B LABELLED
 # ============================================================
+
 p_b <- ggdraw(p_b_core) +
   draw_plot_label(
     "b",
@@ -404,6 +409,7 @@ print(p_b)
 # ============================================================
 # SAVE PANEL B
 # ============================================================
+
 ggsave(
   filename = file.path(OUT_DIR, paste0(FILE_STUB_B, ".png")),
   plot = p_b,
