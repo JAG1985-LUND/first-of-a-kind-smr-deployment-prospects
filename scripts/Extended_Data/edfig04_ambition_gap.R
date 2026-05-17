@@ -1,3 +1,21 @@
+# Code for the manuscript Gordon, J.A., Kazlou, T., Jewell, J. and Cherp, A.
+# First-of-a-Kind deployment prospects for small modular reactors
+#
+# Reproduces Extended Data Fig. 4: gaps between vendor targets and modelled
+# FOAK deployment timelines.
+#
+# Panel a compares vendor FOAK targets with modelled FOAK deployment timelines
+# by current development phase. Panel b compares vendor FOAK targets with
+# modelled FOAK deployment timelines for the global sample, water-cooled
+# designs, advanced modular reactors, OECD designs and non-OECD designs.
+#
+# Required input:
+# data/Extended_Data/edfig04_source_data_ambition_gap.xlsx
+#
+# Outputs:
+# outputs/Extended_Data/Figure_04/edfig04_ambition_gap.png
+# outputs/Extended_Data/Figure_04/edfig04_ambition_gap.pdf
+
 suppressPackageStartupMessages({
   library(readxl)
   library(dplyr)
@@ -10,24 +28,35 @@ rm(list = ls())
 graphics.off()
 
 # ============================================================
-# EXTENDED DATA FIGURE 4 — VENDOR AMBITION GAP
-# a) Vendor FOAK target vs modelled FOAK by phase
-# b) Vendor FOAK target vs modelled FOAK by sample
-# FINAL CLEAN JAG VERSION
-# - keeps original plotting structure
-# - reads edfig04 source workbook
-# - saves PNG + PDF only
+# EXTENDED DATA FIGURE 4
+# VENDOR AMBITION GAP BY DEVELOPMENT PHASE AND SAMPLE GROUP
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS
+# PATHS — GITHUB RUN
 # ------------------------------------------------------------
 
-FILE_IN <- "C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026/Extended Data/Extended_Data_Files/edfig04_source_data_ambition_gap.xlsx"
+FILE_IN <- file.path(
+  "data",
+  "Extended_Data",
+  "edfig04_source_data_ambition_gap.xlsx"
+)
 
-OUT_DIR <- "C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026/Extended Data/Extended_Data_Fig_04"
+OUT_DIR <- file.path(
+  "outputs",
+  "Extended_Data",
+  "Figure_04"
+)
 
-dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+if (!file.exists(FILE_IN)) {
+  stop("Input file not found: ", FILE_IN)
+}
+
+dir.create(
+  OUT_DIR,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
@@ -487,9 +516,9 @@ combined_plot <- plot_grid(
 
 print(combined_plot)
 
-# ------------------------------------------------------------
-# SAVE
-# ------------------------------------------------------------
+# ============================================================
+# SAVE EXTENDED DATA FIGURE 4
+# ============================================================
 
 ggsave(
   filename = file.path(OUT_DIR, "edfig04_ambition_gap.pdf"),
