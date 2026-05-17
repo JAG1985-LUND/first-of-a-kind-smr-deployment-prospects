@@ -5,16 +5,16 @@
 # FOAK deployment timelines.
 #
 # Panel a compares vendor FOAK targets with modelled FOAK deployment timelines
-# by current development phase. Panel b compares vendor FOAK targets with
-# modelled FOAK deployment timelines for the global sample, water-cooled
-# designs, advanced modular reactors, OECD designs and non-OECD designs.
+# for the global sample, OECD designs, non-OECD designs, water-cooled designs
+# and advanced modular reactors. Panel b compares vendor FOAK targets with
+# modelled FOAK deployment timelines by current development phase.
 #
 # Required input:
 # data/Extended_Data/edfig04_source_data_ambition_gap.xlsx
 #
 # Outputs:
-# outputs/Extended_Data/Figure_04/edfig04_ambition_gap.png
-# outputs/Extended_Data/Figure_04/edfig04_ambition_gap.pdf
+# outputs/Extended_Data/edfig04_ambition_gap.png
+# outputs/Extended_Data/edfig04_ambition_gap.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -29,7 +29,7 @@ graphics.off()
 
 # ============================================================
 # EXTENDED DATA FIGURE 4
-# VENDOR AMBITION GAP BY DEVELOPMENT PHASE AND SAMPLE GROUP
+# VENDOR AMBITION GAP BY SAMPLE GROUP AND DEVELOPMENT PHASE
 # ============================================================
 
 # ------------------------------------------------------------
@@ -44,8 +44,7 @@ FILE_IN <- file.path(
 
 OUT_DIR <- file.path(
   "outputs",
-  "Extended_Data",
-  "Figure_04"
+  "Extended_Data"
 )
 
 if (!file.exists(FILE_IN)) {
@@ -84,7 +83,7 @@ X_LIMITS <- c(2025, 2057.2)
 X_BREAKS <- c(2025, 2035, 2045, 2055)
 
 # ------------------------------------------------------------
-# LOAD
+# LOAD DATA
 # ------------------------------------------------------------
 
 panel_a_raw <- read_excel(
@@ -146,134 +145,20 @@ tag_panel <- function(p, tag, x = 0.01, y = 0.99) {
     draw_plot(p) +
     draw_plot_label(
       label = tag,
-      x = x, y = y,
-      hjust = 0, vjust = 1,
+      x = x,
+      y = y,
+      hjust = 0,
+      vjust = 1,
       size = 11,
       fontface = "bold"
     )
 }
 
 # ============================================================
-# PANEL A — PHASE LEVEL
+# PANEL A — SAMPLE LEVEL
 # ============================================================
 
 plot_df_a <- vendors_gap_master %>%
-  filter(sample %in% c("construction", "licensing", "detailed_design", "basic_design", "conceptual_design")) %>%
-  transmute(
-    sample,
-    trl,
-    vendor_p10 = as.numeric(vendor_p10),
-    vendor_p50 = as.numeric(vendor_p50),
-    vendor_p90 = as.numeric(vendor_p90),
-    bas_p10    = vendor_p10 + as.numeric(bas_gap_p10),
-    bas_p50    = vendor_p50 + as.numeric(bas_gap_p50),
-    bas_p90    = vendor_p90 + as.numeric(bas_gap_p90),
-    acc_p10    = vendor_p10 + as.numeric(acc_gap_p10),
-    acc_p50    = vendor_p50 + as.numeric(acc_gap_p50),
-    acc_p90    = vendor_p90 + as.numeric(acc_gap_p90)
-  ) %>%
-  mutate(
-    sample_label = recode(
-      sample,
-      "construction"      = "Construction",
-      "licensing"         = "Licensing",
-      "detailed_design"   = "Detailed design",
-      "basic_design"      = "Basic design",
-      "conceptual_design" = "Conceptual design"
-    ),
-    y_mid = c(
-      "Construction"      = 1,
-      "Licensing"         = 2,
-      "Detailed design"   = 3,
-      "Basic design"      = 4,
-      "Conceptual design" = 5
-    )[sample_label] |> unname(),
-    y_bas = y_mid + 0.25,
-    y_acc = y_mid - 0.25,
-    fill_group = sample_label
-  ) %>%
-  arrange(y_mid)
-
-fill_cols_a <- c(
-  "Conceptual design" = "#FDE0D2",
-  "Basic design"      = "#F4A582",
-  "Detailed design"   = "#D6604D",
-  "Licensing"         = "#D1E5F0",
-  "Construction"      = "#92C5DE"
-)
-
-p_a_core <- ggplot(plot_df_a) +
-  geom_segment(
-    aes(x = vendor_p10, xend = vendor_p90, y = y_mid, yend = y_mid),
-    linewidth = 0.7,
-    colour = "black",
-    lineend = "butt"
-  ) +
-  geom_segment(
-    aes(x = bas_p10, xend = bas_p90, y = y_bas, yend = y_bas),
-    linewidth = 0.8,
-    colour = "grey45",
-    lineend = "butt"
-  ) +
-  geom_segment(
-    aes(x = acc_p10, xend = acc_p90, y = y_acc, yend = y_acc),
-    linewidth = 0.8,
-    colour = "#228B22",
-    lineend = "butt"
-  ) +
-  geom_point(
-    aes(x = vendor_p50, y = y_mid),
-    shape = 4,
-    size = 2.8,
-    stroke = 0.9,
-    colour = "black"
-  ) +
-  geom_point(
-    aes(x = bas_p50, y = y_bas, fill = fill_group),
-    shape = 22,
-    size = 3.0,
-    stroke = 0.9,
-    colour = "grey45"
-  ) +
-  geom_point(
-    aes(x = acc_p50, y = y_acc, fill = fill_group),
-    shape = 23,
-    size = 3.0,
-    stroke = 0.9,
-    colour = "#228B22"
-  ) +
-  scale_fill_manual(
-    values = fill_cols_a,
-    guide = "none"
-  ) +
-  scale_x_continuous(
-    limits = X_LIMITS,
-    breaks = X_BREAKS,
-    expand = expansion(mult = c(0.01, 0.01))
-  ) +
-  scale_y_continuous(
-    breaks = 1:5,
-    labels = c(
-      "Construction",
-      "Licensing",
-      "Detailed design",
-      "Basic design",
-      "Conceptual design"
-    ),
-    limits = c(0.5, 5.35),
-    expand = expansion(mult = c(0.01, 0.01))
-  ) +
-  labs(
-    x = "Year",
-    y = NULL
-  ) +
-  base_theme
-
-# ============================================================
-# PANEL B — SAMPLE LEVEL
-# ============================================================
-
-plot_df_b <- vendors_gap_master %>%
   filter(sample %in% c("global", "oecd", "non_oecd", "water_cooled", "AMRs")) %>%
   transmute(
     sample,
@@ -308,7 +193,7 @@ plot_df_b <- vendors_gap_master %>%
   ) %>%
   arrange(desc(y_mid))
 
-p_b_core <- ggplot(plot_df_b) +
+p_a_core <- ggplot(plot_df_a) +
   geom_segment(
     aes(x = vendor_p10, xend = vendor_p90, y = y_mid, yend = y_mid),
     linewidth = 0.7,
@@ -375,6 +260,122 @@ p_b_core <- ggplot(plot_df_b) +
   theme(
     plot.margin = margin(4, 12, 4, 6)
   )
+
+# ============================================================
+# PANEL B — DEVELOPMENT PHASE LEVEL
+# ============================================================
+
+plot_df_b <- vendors_gap_master %>%
+  filter(sample %in% c("construction", "licensing", "detailed_design", "basic_design", "conceptual_design")) %>%
+  transmute(
+    sample,
+    trl,
+    vendor_p10 = as.numeric(vendor_p10),
+    vendor_p50 = as.numeric(vendor_p50),
+    vendor_p90 = as.numeric(vendor_p90),
+    bas_p10    = vendor_p10 + as.numeric(bas_gap_p10),
+    bas_p50    = vendor_p50 + as.numeric(bas_gap_p50),
+    bas_p90    = vendor_p90 + as.numeric(bas_gap_p90),
+    acc_p10    = vendor_p10 + as.numeric(acc_gap_p10),
+    acc_p50    = vendor_p50 + as.numeric(acc_gap_p50),
+    acc_p90    = vendor_p90 + as.numeric(acc_gap_p90)
+  ) %>%
+  mutate(
+    sample_label = recode(
+      sample,
+      "construction"      = "Construction",
+      "licensing"         = "Licensing",
+      "detailed_design"   = "Detailed design",
+      "basic_design"      = "Basic design",
+      "conceptual_design" = "Conceptual design"
+    ),
+    y_mid = c(
+      "Construction"      = 1,
+      "Licensing"         = 2,
+      "Detailed design"   = 3,
+      "Basic design"      = 4,
+      "Conceptual design" = 5
+    )[sample_label] |> unname(),
+    y_bas = y_mid + 0.25,
+    y_acc = y_mid - 0.25,
+    fill_group = sample_label
+  ) %>%
+  arrange(y_mid)
+
+fill_cols_b <- c(
+  "Conceptual design" = "#FDE0D2",
+  "Basic design"      = "#F4A582",
+  "Detailed design"   = "#D6604D",
+  "Licensing"         = "#D1E5F0",
+  "Construction"      = "#92C5DE"
+)
+
+p_b_core <- ggplot(plot_df_b) +
+  geom_segment(
+    aes(x = vendor_p10, xend = vendor_p90, y = y_mid, yend = y_mid),
+    linewidth = 0.7,
+    colour = "black",
+    lineend = "butt"
+  ) +
+  geom_segment(
+    aes(x = bas_p10, xend = bas_p90, y = y_bas, yend = y_bas),
+    linewidth = 0.8,
+    colour = "grey45",
+    lineend = "butt"
+  ) +
+  geom_segment(
+    aes(x = acc_p10, xend = acc_p90, y = y_acc, yend = y_acc),
+    linewidth = 0.8,
+    colour = "#228B22",
+    lineend = "butt"
+  ) +
+  geom_point(
+    aes(x = vendor_p50, y = y_mid),
+    shape = 4,
+    size = 2.8,
+    stroke = 0.9,
+    colour = "black"
+  ) +
+  geom_point(
+    aes(x = bas_p50, y = y_bas, fill = fill_group),
+    shape = 22,
+    size = 3.0,
+    stroke = 0.9,
+    colour = "grey45"
+  ) +
+  geom_point(
+    aes(x = acc_p50, y = y_acc, fill = fill_group),
+    shape = 23,
+    size = 3.0,
+    stroke = 0.9,
+    colour = "#228B22"
+  ) +
+  scale_fill_manual(
+    values = fill_cols_b,
+    guide = "none"
+  ) +
+  scale_x_continuous(
+    limits = X_LIMITS,
+    breaks = X_BREAKS,
+    expand = expansion(mult = c(0.01, 0.01))
+  ) +
+  scale_y_continuous(
+    breaks = 1:5,
+    labels = c(
+      "Construction",
+      "Licensing",
+      "Detailed design",
+      "Basic design",
+      "Conceptual design"
+    ),
+    limits = c(0.5, 5.35),
+    expand = expansion(mult = c(0.01, 0.01))
+  ) +
+  labs(
+    x = "Year",
+    y = NULL
+  ) +
+  base_theme
 
 # ------------------------------------------------------------
 # ALIGN PANELS
