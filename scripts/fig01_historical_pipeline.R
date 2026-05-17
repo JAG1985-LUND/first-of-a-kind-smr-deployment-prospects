@@ -14,7 +14,7 @@
 # by reactor cooling type.
 #
 # Required input:
-# fig01_source_data_historical_pipeline.xlsx
+# data/Main_Figures/fig01_source_data_historical_pipeline.xlsx
 #
 # Outputs:
 # fig01_historical_pipeline.png
@@ -38,8 +38,10 @@ graphics.off()
 # PATHS
 # ------------------------------------------------------------
 
+DATA_DIR <- file.path("data", "Main_Figures")
+
 FILE <- file.path(
-  "data",
+  DATA_DIR,
   "fig01_source_data_historical_pipeline.xlsx"
 )
 
