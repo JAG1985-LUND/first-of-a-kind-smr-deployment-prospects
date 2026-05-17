@@ -5,7 +5,7 @@ This folder contains source data workbooks used to generate the main manuscript 
 The current main figure source-data structure is organised by figure number:
 
 1. **Fig. 1** — OECD and non-OECD SMR design pipelines and regional composition in 2025.
-2. **Fig. 2** — Probabilistic framework for SMR project progression, pipeline expansion and FOAK deployment.
+2. **Fig. 2** — Probabilistic framework for SMR project progression, pipeline evolution and FOAK deployment.
 3. **Fig. 3** — FOAK deployment timelines for SMR designs with vendor-stated targets.
 4. **Fig. 4** — Vendor-announced and modelled FOAK SMR deployment trajectories.
 5. **Fig. 5** — Projected FOAK SMR deployment by OECD membership and reactor cooling type.
