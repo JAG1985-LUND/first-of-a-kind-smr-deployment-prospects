@@ -35,8 +35,9 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS
+# OUTPUT PATHS
 # ------------------------------------------------------------
+
 OUT_DIR <- file.path(
   "outputs",
   "Figure_02",
@@ -52,6 +53,7 @@ dir.create(
 # ------------------------------------------------------------
 # EXPORT SETTINGS
 # ------------------------------------------------------------
+
 SAVE_W_MM <- 95
 SAVE_H_MM <- 72
 SAVE_DPI  <- 600
@@ -61,6 +63,7 @@ FILE_STUB <- "fig02_panel_d_failure_risks"
 # ------------------------------------------------------------
 # TYPOGRAPHY
 # ------------------------------------------------------------
+
 BASE_SIZE        <- 7
 AXIS_TEXT_SIZE   <- 6.5
 AXIS_TITLE_SIZE  <- 7
@@ -69,12 +72,14 @@ PANEL_LABEL_SIZE <- 10
 # ------------------------------------------------------------
 # PANEL TAG GEOMETRY
 # ------------------------------------------------------------
+
 TAG_X <- 0.01
 TAG_Y <- 0.99
 
 # ------------------------------------------------------------
 # COLOURS
 # ------------------------------------------------------------
+
 col_baseline_line <- "grey30"
 col_baseline_fill <- "grey70"
 col_accel_line    <- "#006400"
@@ -92,6 +97,7 @@ phase_cols <- c(
 # ============================================================
 # PANEL D — PROJECT PROGRESSION UNDER PHASE-SPECIFIC FAILURE RISKS
 # ============================================================
+
 ph_bas <- tribble(
   ~Phase, ~Mean, ~Low,  ~High,
   "CD", 14.9,  6.9, 27.0,
@@ -132,6 +138,7 @@ calc_surv <- function(df) {
 
 calc_post <- function(df, s, slo, shi) {
   x <- calc_surv(df)
+  
   tibble(
     surv    = s   * c(1, x$surv),
     surv_lo = slo * c(1, x$surv_lo),
@@ -175,7 +182,10 @@ curve <- bind_rows(
 
 curve <- curve %>%
   mutate(
-    Scenario = factor(Scenario, levels = c("Baseline", "Accelerated")),
+    Scenario = factor(
+      Scenario,
+      levels = c("Baseline", "Accelerated")
+    ),
     PhaseLabel = factor(
       x,
       levels = 1:6,
@@ -193,7 +203,11 @@ curve <- curve %>%
 # ============================================================
 # PANEL D CORE
 # ============================================================
-p_d_core <- ggplot(curve, aes(x = x, y = surv * 100, colour = Scenario, fill = Scenario)) +
+
+p_d_core <- ggplot(
+  curve,
+  aes(x = x, y = surv * 100, colour = Scenario, fill = Scenario)
+) +
   geom_ribbon(
     aes(ymin = lo * 100, ymax = hi * 100),
     alpha = 0.20,
@@ -209,7 +223,10 @@ p_d_core <- ggplot(curve, aes(x = x, y = surv * 100, colour = Scenario, fill = S
     show.legend = FALSE
   ) +
   scale_colour_manual(
-    values = c("Baseline" = col_baseline_line, "Accelerated" = col_accel_line),
+    values = c(
+      "Baseline" = col_baseline_line,
+      "Accelerated" = col_accel_line
+    ),
     guide = "none"
   ) +
   scale_fill_manual(
@@ -275,6 +292,7 @@ p_d_core <- ggplot(curve, aes(x = x, y = surv * 100, colour = Scenario, fill = S
 # ============================================================
 # PANEL D LABELLED
 # ============================================================
+
 p_d <- ggdraw(p_d_core) +
   draw_plot_label(
     "d",
@@ -289,8 +307,9 @@ p_d <- ggdraw(p_d_core) +
 print(p_d)
 
 # ============================================================
-# SAVE EXPORTS
+# SAVE PANEL D
 # ============================================================
+
 ggsave(
   filename = file.path(OUT_DIR, paste0(FILE_STUB, ".png")),
   plot = p_d,
