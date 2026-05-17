@@ -9,7 +9,7 @@
 # phase-specific project attrition. Phase colours are consistent across panels.
 #
 # Required input:
-# data/fig02_source_data_foak_framework.xlsx
+# data/Main_Figures/fig02_source_data_foak_framework.xlsx
 #   - sheet: future_pipeline
 #
 # Outputs:
@@ -37,19 +37,20 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS — LOCAL JAG RUN
+# PATHS
 # ------------------------------------------------------------
 
+DATA_DIR <- file.path("data", "Main_Figures")
+
 FILE <- file.path(
-  "C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026",
-  "Main Data",
-  "Main_Data_Files",
+  DATA_DIR,
   "fig02_source_data_foak_framework.xlsx"
 )
 
 OUT_DIR <- file.path(
-  "C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026",
-  "Figure_02"
+  "outputs",
+  "Figure_02",
+  "intermediate"
 )
 
 if (!file.exists(FILE)) {
