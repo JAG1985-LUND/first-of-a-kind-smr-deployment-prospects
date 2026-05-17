@@ -5,7 +5,7 @@
 # by reactor cooling type and OECD membership.
 #
 # Required input:
-# data/Extended_Data/edfig02_source_data_historical_cooling_oecd_trajectories.xlsx
+# data/Extended_Data/edfig02_source_data_historical_cooling_oecd.xlsx
 #
 # Outputs:
 # outputs/Extended_Data/Figure_02/edfig02_historical_cooling_oecd.png
