@@ -2,7 +2,7 @@
 # First-of-a-Kind deployment prospects for small modular reactors
 #
 # Rebuilds Figure 2: probabilistic framework for SMR project progression,
-# pipeline expansion and FOAK deployment.
+# pipeline evolution and FOAK deployment.
 #
 # # This GitHub rebuild script reads the panel-level RDS objects generated for
 # panels a, b, c, d, and e-f, then assembles the final Figure 2.
