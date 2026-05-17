@@ -16,8 +16,8 @@
 # data/Extended_Data/edfig10_source_data_capacity_projections.xlsx
 #
 # Outputs:
-# outputs/Extended_Data/Figure_10/edfig10_capacity_projections.png
-# outputs/Extended_Data/Figure_10/edfig10_capacity_projections.pdf
+# outputs/Extended_Data/edfig10_capacity_projections.png
+# outputs/Extended_Data/edfig10_capacity_projections.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -34,6 +34,7 @@ graphics.off()
 # ============================================================
 # EXTENDED DATA FIGURE 10
 # PROJECTED SMR CAPACITY IN 2035 AND 2050
+# SHARED LEGEND ONLY
 # ============================================================
 
 # ------------------------------------------------------------
@@ -48,8 +49,7 @@ FILE <- file.path(
 
 OUT_DIR <- file.path(
   "outputs",
-  "Extended_Data",
-  "Figure_10"
+  "Extended_Data"
 )
 
 if (!file.exists(FILE)) {
@@ -79,7 +79,6 @@ AXIS_TEXT_SIZE    <- 10
 AXIS_TITLE_SIZE   <- 11
 LEGEND_TEXT_SIZE  <- 10
 LEGEND_TITLE_SIZE <- 10
-TITLE_SIZE        <- 11
 TAG_SIZE          <- 11
 
 shape_vals <- c(
@@ -130,80 +129,44 @@ standardise_projection_sheet <- function(df, target_year) {
   }
 }
 
-add_panel_header <- function(
-    plot_obj,
-    tag,
-    title_text,
-    title_x = 0.56,
-    title_y = 0.985,
-    plot_height = 0.92
-) {
+add_panel_tag <- function(plot_obj, tag, tag_x = 0.015, tag_y = 0.985) {
   ggdraw() +
     draw_plot(
       plot_obj,
       x = 0,
       y = 0,
       width = 1,
-      height = plot_height
+      height = 1
     ) +
     draw_plot_label(
       label = tag,
-      x = 0.015,
-      y = title_y,
+      x = tag_x,
+      y = tag_y,
       hjust = 0,
       vjust = 1,
       size = TAG_SIZE,
-      fontface = "bold"
-    ) +
-    draw_label(
-      label = title_text,
-      x = title_x,
-      y = title_y,
-      hjust = 0.5,
-      vjust = 1,
-      size = TITLE_SIZE,
       fontface = "bold"
     )
 }
 
 theme_shared <- theme_classic(base_size = BASE_SIZE) +
   theme(
-    axis.line.x = element_line(
-      colour = "grey35",
-      linewidth = 0.3
-    ),
-    axis.line.y = element_line(
-      colour = "grey35",
-      linewidth = 0.3
-    ),
-    axis.text = element_text(
-      size = AXIS_TEXT_SIZE,
-      colour = "black"
-    ),
-    axis.title = element_text(
-      size = AXIS_TITLE_SIZE,
-      colour = "black"
-    ),
+    axis.line.x = element_line(colour = "grey35", linewidth = 0.3),
+    axis.line.y = element_line(colour = "grey35", linewidth = 0.3),
+    axis.ticks = element_line(colour = "grey35", linewidth = 0.3),
+    axis.text = element_text(size = AXIS_TEXT_SIZE, colour = "black"),
+    axis.title = element_text(size = AXIS_TITLE_SIZE, colour = "black"),
     legend.position = "bottom",
     legend.direction = "horizontal",
-    legend.title = element_text(
-      size = LEGEND_TITLE_SIZE
-    ),
-    legend.text = element_text(
-      size = LEGEND_TEXT_SIZE
-    ),
+    legend.title = element_text(size = LEGEND_TITLE_SIZE),
+    legend.text = element_text(size = LEGEND_TEXT_SIZE),
     legend.key.height = unit(0.35, "cm"),
     legend.key.width = unit(0.75, "cm"),
     legend.margin = margin(0, 0, 0, 0),
     legend.box.margin = margin(0, 0, 0, 0),
-    plot.background = element_rect(
-      fill = "white",
-      colour = NA
-    ),
-    panel.background = element_rect(
-      fill = "white",
-      colour = NA
-    )
+    plot.title = element_blank(),
+    plot.background = element_rect(fill = "white", colour = NA),
+    panel.background = element_rect(fill = "white", colour = NA)
   )
 
 # ============================================================
@@ -526,15 +489,6 @@ p2035_core <- ggplot(
     plot.margin = margin(2, 12, 1, 8)
   )
 
-p2035_tagged <- add_panel_header(
-  p2035_core,
-  tag = "a",
-  title_text = "SMR capacity projections to 2035",
-  title_x = 0.56,
-  title_y = 0.980,
-  plot_height = 0.92
-)
-
 # ============================================================
 # PANEL B — 2050
 # ============================================================
@@ -741,25 +695,55 @@ p2050_core <- ggplot(
     plot.margin = margin(1, 12, 2, 8)
   )
 
-p2050_tagged <- add_panel_header(
-  p2050_core,
+# ============================================================
+# SHARED LEGEND
+# ============================================================
+
+shared_legend <- cowplot::get_legend(
+  p2050_core +
+    theme(
+      legend.position = "bottom",
+      legend.direction = "horizontal",
+      legend.box.margin = margin(0, 0, 0, 0),
+      legend.margin = margin(0, 0, 0, 0)
+    )
+)
+
+# ============================================================
+# REMOVE PANEL-LEVEL LEGENDS + ADD PANEL TAGS
+# ============================================================
+
+p2035_tagged <- add_panel_tag(
+  p2035_core + theme(legend.position = "none"),
+  tag = "a",
+  tag_x = 0.015,
+  tag_y = 0.985
+)
+
+p2050_tagged <- add_panel_tag(
+  p2050_core + theme(legend.position = "none"),
   tag = "b",
-  title_text = "SMR capacity projections to 2050",
-  title_x = 0.56,
-  title_y = 0.955,
-  plot_height = 0.92
+  tag_x = 0.015,
+  tag_y = 0.985
 )
 
 # ============================================================
 # COMBINE
 # ============================================================
 
-combined_plot <- plot_grid(
+panels_only <- plot_grid(
   p2035_tagged,
   p2050_tagged,
   ncol = 1,
   align = "v",
   rel_heights = c(1, 0.98)
+)
+
+combined_plot <- plot_grid(
+  panels_only,
+  shared_legend,
+  ncol = 1,
+  rel_heights = c(1, 0.08)
 )
 
 print(combined_plot)
