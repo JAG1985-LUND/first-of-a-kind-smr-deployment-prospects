@@ -19,7 +19,7 @@
 # corresponding uncertainty ranges.
 #
 # Required input:
-# data/fig04_source_foak_deployment_2050.xlsx
+# data/Main_Figures/fig04_source_foak_deployment_2050.xlsx
 #   - sheet: global_outlook
 #   - sheet: baseline_counterfactuals
 #   - sheet: accelerated_counterfactuals
@@ -50,41 +50,20 @@ graphics.off()
 # PROJECT PATHS
 # ------------------------------------------------------------
 
-LOCAL_BASE_DIR <- "C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026/Main Data"
+DATA_DIR <- file.path("data", "Main_Figures")
 
-LOCAL_FILE <- file.path(
-  LOCAL_BASE_DIR,
-  "Main_Data_Files",
+FILE <- file.path(
+  DATA_DIR,
   "fig04_source_foak_deployment_2050.xlsx"
 )
 
-LOCAL_OUT <- file.path(
-  dirname(LOCAL_BASE_DIR),
-  "Figure_04"
-)
-
-REPO_FILE <- file.path(
-  "data",
-  "fig04_source_foak_deployment_2050.xlsx"
-)
-
-REPO_OUT <- file.path(
+OUT_DIR <- file.path(
   "outputs",
   "Figure_04"
 )
 
-if (file.exists(REPO_FILE)) {
-  FILE <- REPO_FILE
-  OUT_DIR <- REPO_OUT
-} else if (file.exists(LOCAL_FILE)) {
-  FILE <- LOCAL_FILE
-  OUT_DIR <- LOCAL_OUT
-} else {
-  stop(
-    "Input file not found in either expected location:\n",
-    "1) ", REPO_FILE, "\n",
-    "2) ", LOCAL_FILE
-  )
+if (!file.exists(FILE)) {
+  stop("Input file not found: ", FILE)
 }
 
 dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
@@ -673,26 +652,46 @@ p_b <- add_panel_decorations(
 
 legend_plot <- ggplot() +
   geom_segment(
-    aes(x = 0, xend = 1, y = 1, yend = 1,
-        colour = factor("Historical operation", levels = legend_levels)),
+    aes(
+      x = 0,
+      xend = 1,
+      y = 1,
+      yend = 1,
+      colour = factor("Historical operation", levels = legend_levels)
+    ),
     linewidth = LW_HIST,
     lineend = "round"
   ) +
   geom_segment(
-    aes(x = 0, xend = 1, y = 1, yend = 1,
-        colour = factor("Vendor-announced targets", levels = legend_levels)),
+    aes(
+      x = 0,
+      xend = 1,
+      y = 1,
+      yend = 1,
+      colour = factor("Vendor-announced targets", levels = legend_levels)
+    ),
     linewidth = LW_VENDOR,
     lineend = "round"
   ) +
   geom_segment(
-    aes(x = 0, xend = 1, y = 1, yend = 1,
-        colour = factor("Baseline scenario", levels = legend_levels)),
+    aes(
+      x = 0,
+      xend = 1,
+      y = 1,
+      yend = 1,
+      colour = factor("Baseline scenario", levels = legend_levels)
+    ),
     linewidth = LW_BASE,
     lineend = "round"
   ) +
   geom_segment(
-    aes(x = 0, xend = 1, y = 1, yend = 1,
-        colour = factor("Accelerated scenario", levels = legend_levels)),
+    aes(
+      x = 0,
+      xend = 1,
+      y = 1,
+      yend = 1,
+      colour = factor("Accelerated scenario", levels = legend_levels)
+    ),
     linewidth = LW_ACC,
     lineend = "round"
   ) +
