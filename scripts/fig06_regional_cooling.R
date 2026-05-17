@@ -22,13 +22,13 @@
 # over time.
 #
 # Required input:
-# Main_Data_Files/fig06_source_data_regional_deployment_cooling_type.xlsx
+# data/Main_Figures/fig06_source_data_regional_cooling.xlsx
 #   - sheet: regional_deployment
 #   - sheet: cooling_type
 #
 # Outputs:
-# Figure_06/fig06_regional_cooling.png
-# Figure_06/fig06_regional_cooling.pdf
+# outputs/Figure_06/fig06_regional_cooling.png
+# outputs/Figure_06/fig06_regional_cooling.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -50,22 +50,33 @@ graphics.off()
 # ------------------------------------------------------------
 # PATHS
 # ------------------------------------------------------------
-BASE_DIR <- file.path(
-  "C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026",
-  "Main Data"
+
+DATA_DIR <- file.path("data", "Main_Figures")
+
+FILE <- file.path(
+  DATA_DIR,
+  "fig06_source_data_regional_cooling.xlsx"
 )
 
-DATA_DIR <- file.path(BASE_DIR, "Main_Data_Files")
-OUT_DIR  <- file.path(BASE_DIR, "Figure_06")
+OUT_DIR <- file.path(
+  "outputs",
+  "Figure_06"
+)
 
-FILE <- file.path(DATA_DIR, "fig06_source_data_regional_deployment_cooling_type.xlsx")
+if (!file.exists(FILE)) {
+  stop("Input file not found: ", FILE)
+}
 
-dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
-stopifnot(file.exists(FILE))
+dir.create(
+  OUT_DIR,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
 # ------------------------------------------------------------
+
 SAVE_W_MM <- 180
 SAVE_H_MM <- 180
 SAVE_DPI  <- 600
@@ -75,6 +86,7 @@ FIGURE_STEM <- "fig06_regional_cooling"
 # ------------------------------------------------------------
 # TYPOGRAPHY
 # ------------------------------------------------------------
+
 BASE_SIZE         <- 7
 AXIS_TEXT_SIZE    <- 6.5
 AXIS_TITLE_SIZE   <- 7
@@ -86,6 +98,7 @@ TAG_SIZE          <- 12
 # ------------------------------------------------------------
 # THEME
 # ------------------------------------------------------------
+
 common_theme <- theme_classic(base_size = BASE_SIZE) +
   theme(
     panel.grid = element_blank(),
@@ -116,6 +129,7 @@ common_theme <- theme_classic(base_size = BASE_SIZE) +
 # ------------------------------------------------------------
 # HELPERS
 # ------------------------------------------------------------
+
 clean_names_local <- function(x) {
   x %>%
     str_trim() %>%
@@ -180,6 +194,7 @@ add_panel_decorations <- function(plot_obj, tag, title_text) {
 # ============================================================
 # PANELS A-B — REGIONAL CUMULATIVE DEPLOYMENT
 # ============================================================
+
 df_reg <- read_excel(FILE, sheet = "regional_deployment")
 names(df_reg) <- clean_names_local(names(df_reg))
 
@@ -262,6 +277,7 @@ p_b <- add_panel_decorations(p_b_core, "b", "Accelerated scenario")
 # ============================================================
 # PANELS C-D — COOLING-TYPE COMPOSITION BY REGION IN 2050
 # ============================================================
+
 df_cool <- read_excel(FILE, sheet = "cooling_type")
 names(df_cool) <- clean_names_local(names(df_cool))
 
@@ -351,6 +367,7 @@ p_d <- add_panel_decorations(p_d_core, "d", "Accelerated scenario")
 # ============================================================
 # COMBINE PANELS
 # ============================================================
+
 top_row <- plot_grid(
   p_a,
   p_b,
@@ -378,9 +395,12 @@ fig06_regional_cooling <- plot_grid(
   axis = "tblr"
 )
 
+print(fig06_regional_cooling)
+
 # ============================================================
 # EXPORT
 # ============================================================
+
 ggsave(
   filename = file.path(OUT_DIR, paste0(FIGURE_STEM, ".png")),
   plot = fig06_regional_cooling,
