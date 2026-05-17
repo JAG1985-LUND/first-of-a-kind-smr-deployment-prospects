@@ -21,7 +21,7 @@
 # Lines indicate median trajectories, and shaded bands indicate P10-P90 ranges.
 #
 # Required input:
-# data/fig05_source_data_oecd_cooling.xlsx
+# data/Main_Figures/fig05_source_data_oecd_cooling.xlsx
 #   - sheet: oecd_membership
 #   - sheet: cooling_type
 #
@@ -50,18 +50,33 @@ graphics.off()
 # ------------------------------------------------------------
 # PATHS
 # ------------------------------------------------------------
-BASE_DIR <- "C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026/Main Data"
-DATA_DIR <- file.path(BASE_DIR, "Main_Data_Files")
-OUT_DIR  <- file.path(BASE_DIR, "Figure_05")
 
-FILE <- file.path(DATA_DIR, "fig05_source_data_oecd_cooling.xlsx")
+DATA_DIR <- file.path("data", "Main_Figures")
 
-dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
-stopifnot(file.exists(FILE))
+FILE <- file.path(
+  DATA_DIR,
+  "fig05_source_data_oecd_cooling.xlsx"
+)
+
+OUT_DIR <- file.path(
+  "outputs",
+  "Figure_05"
+)
+
+if (!file.exists(FILE)) {
+  stop("Input file not found: ", FILE)
+}
+
+dir.create(
+  OUT_DIR,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
 
 # ------------------------------------------------------------
 # TARGETED EXPORT NAME
 # ------------------------------------------------------------
+
 FIGURE_TITLE <- "oecd_cooling"
 
 make_slug <- function(x) {
@@ -77,6 +92,7 @@ FIGURE_STEM <- paste0("fig05_", make_slug(FIGURE_TITLE))
 # ------------------------------------------------------------
 # EXPORT SETTINGS
 # ------------------------------------------------------------
+
 SAVE_W_MM <- 180
 SAVE_H_MM <- 180
 SAVE_DPI  <- 600
@@ -84,6 +100,7 @@ SAVE_DPI  <- 600
 # ------------------------------------------------------------
 # TYPOGRAPHY
 # ------------------------------------------------------------
+
 BASE_SIZE         <- 7
 AXIS_TEXT_SIZE    <- 6.5
 AXIS_TITLE_SIZE   <- 7
@@ -95,11 +112,13 @@ TAG_SIZE          <- 12
 # ------------------------------------------------------------
 # LINE WIDTHS
 # ------------------------------------------------------------
+
 LW_SMALL <- 0.75
 
 # ------------------------------------------------------------
 # COLOURS
 # ------------------------------------------------------------
+
 col_oecd_line    <- "#1b9e77"
 col_oecd_fill    <- "#1b9e77"
 col_nonoecd_line <- "#A67C00"
@@ -113,6 +132,7 @@ col_amr_fill   <- "#F8D3BA"
 # ------------------------------------------------------------
 # HELPERS
 # ------------------------------------------------------------
+
 clean_names_local <- function(x) {
   x <- trimws(x)
   x <- gsub("[[:space:][:punct:]]+", "_", x)
@@ -315,6 +335,7 @@ make_disaggregated_panel <- function(data, scenario_name, legend_title, colour_v
 # ============================================================
 # PANELS A-B — OECD MEMBERSHIP
 # ============================================================
+
 oecd_data <- read_disaggregated_sheet(
   sheet = "oecd_membership",
   group_type = "oecd"
@@ -365,6 +386,7 @@ p_b <- add_panel_decorations(
 # ============================================================
 # PANELS C-D — REACTOR COOLING TYPE
 # ============================================================
+
 cooling_data <- read_disaggregated_sheet(
   sheet = "cooling_type",
   group_type = "cooling"
@@ -415,6 +437,7 @@ p_d <- add_panel_decorations(
 # ============================================================
 # COMBINE PANELS
 # ============================================================
+
 top_row <- plot_grid(
   p_a, p_b,
   ncol = 2,
@@ -440,9 +463,12 @@ fig05_oecd_cooling <- plot_grid(
   axis = "tblr"
 )
 
+print(fig05_oecd_cooling)
+
 # ============================================================
 # EXPORT
 # ============================================================
+
 ggsave(
   filename = file.path(OUT_DIR, paste0(FIGURE_STEM, ".png")),
   plot = fig05_oecd_cooling,
