@@ -4,11 +4,11 @@
 # Rebuilds Figure 2: probabilistic framework for SMR project progression,
 # pipeline expansion and FOAK deployment.
 #
-# This local JAG rebuild script reads the panel-level RDS objects generated for
+# # This GitHub rebuild script reads the panel-level RDS objects generated for
 # panels a, b, c, d, and e-f, then assembles the final Figure 2.
 #
 # Required inputs in:
-# C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026/Figure_02
+# outputs/Figure_02/intermediate
 #
 # Framework_panel_A_duration_distributions_centred.rds
 # fig02_panel_b_project_progression.rds
@@ -35,15 +35,19 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS — LOCAL JAG RUN
+# PATHS — GITHUB RUN
 # ------------------------------------------------------------
 
+
 OUT_DIR <- file.path(
-  "C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026",
+  "outputs",
   "Figure_02"
 )
 
-INT_DIR <- OUT_DIR
+INT_DIR <- file.path(
+  OUT_DIR,
+  "intermediate"
+)
 
 FILE_A <- file.path(
   INT_DIR,
