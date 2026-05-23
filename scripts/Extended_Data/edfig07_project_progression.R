@@ -1,7 +1,7 @@
 # Code for the manuscript Gordon, J.A., Kazlou, T., Jewell, J. and Cherp, A.
 # First-of-a-Kind deployment prospects for small modular reactors
 #
-# Reproduces Extended Data Fig. 7: historical SMR design pipelines and
+# Reproduces Extended Data Fig. 8: historical SMR design pipelines and
 # projected FOAK timelines by OECD membership.
 #
 # Panel a shows OECD designs. Panel b shows non-OECD designs. Coloured
@@ -11,11 +11,11 @@
 # vertical line marks 2035.
 #
 # Required input:
-# data/Extended_Data/edfig07_source_data_project_progression_2050.xlsx
+# data/Extended_Data/edfig08_source_data_project_progression_2050.xlsx
 #
 # Outputs:
-# outputs/Extended_Data/Figure_07/edfig07_project_progression_2050.png
-# outputs/Extended_Data/Figure_07/edfig07_project_progression_2050.pdf
+# outputs/Extended_Data/Figure_08/edfig08_project_progression_2050.png
+# outputs/Extended_Data/Figure_08/edfig08_project_progression_2050.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -42,13 +42,13 @@ graphics.off()
 FILE <- file.path(
   "data",
   "Extended_Data",
-  "edfig07_source_data_project_progression_2050.xlsx"
+  "edfig08_source_data_project_progression_2050.xlsx"
 )
 
 OUT_DIR <- file.path(
   "outputs",
   "Extended_Data",
-  "Figure_07"
+  "Figure_08"
 )
 
 if (!file.exists(FILE)) {
@@ -804,7 +804,7 @@ final_fig <- cowplot::plot_grid(
 print(final_fig)
 
 # ------------------------------------------------------------
-# SAVE EXTENDED DATA FIGURE 7
+# SAVE EXTENDED DATA FIGURE 8
 # ------------------------------------------------------------
 
 w_in <- 180 / 25.4
@@ -813,7 +813,7 @@ h_in <- 215 / 25.4
 ggsave(
   filename = file.path(
     OUT_DIR,
-    "edfig07_project_progression_2050.png"
+    "edfig08_project_progression_2050.png"
   ),
   plot = final_fig,
   width = w_in,
@@ -825,7 +825,7 @@ ggsave(
 ggsave(
   filename = file.path(
     OUT_DIR,
-    "edfig07_project_progression_2050.pdf"
+    "edfig08_project_progression_2050.pdf"
   ),
   plot = final_fig,
   width = w_in,
