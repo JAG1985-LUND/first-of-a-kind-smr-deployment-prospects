@@ -1,7 +1,7 @@
 # Code for the manuscript Gordon, J.A., Kazlou, T., Jewell, J. and Cherp, A.
 # First-of-a-Kind deployment prospects for small modular reactors
 #
-# Reproduces Extended Data Fig. 8: cross-validation of modelled FOAK
+# Reproduces Extended Data Fig. 7: cross-validation of modelled FOAK
 # deployment timing against technology and market readiness indicators.
 #
 # Panel a plots technology readiness level (TRL) against modelled median FOAK
@@ -10,11 +10,11 @@
 # projections are shown.
 #
 # Required input:
-# data/Extended_Data/edfig08_source_data_market_readiness.xlsx
+# data/Extended_Data/edfig07_source_data_market_readiness.xlsx
 #
 # Outputs:
-# outputs/Extended_Data/Figure_08/edfig08_market_readiness.png
-# outputs/Extended_Data/Figure_08/edfig08_market_readiness.pdf
+# outputs/Extended_Data/Figure_07/edfig07_market_readiness.png
+# outputs/Extended_Data/Figure_07/edfig07_market_readiness.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -29,7 +29,7 @@ rm(list = ls())
 graphics.off()
 
 # ============================================================
-# EXTENDED DATA FIGURE 8
+# EXTENDED DATA FIGURE 7
 # CROSS-VALIDATION AGAINST TECHNOLOGY AND MARKET READINESS
 # ============================================================
 
@@ -40,7 +40,7 @@ graphics.off()
 FILE_IN <- file.path(
   "data",
   "Extended_Data",
-  "edfig08_source_data_market_readiness.xlsx"
+  "edfig07_source_data_market_readiness.xlsx"
 )
 
 SHEET_A <- "kang_2026_trl"
@@ -49,7 +49,7 @@ SHEET_B <- "NEA_market_readiness"
 OUT_DIR <- file.path(
   "outputs",
   "Extended_Data",
-  "Figure_08"
+  "Figure_07"
 )
 
 if (!file.exists(FILE_IN)) {
@@ -769,13 +769,13 @@ fig_combined <- plot_grid(
 print(fig_combined)
 
 # ============================================================
-# SAVE EXTENDED DATA FIGURE 8
+# SAVE EXTENDED DATA FIGURE 7
 # ============================================================
 
 ggsave(
   filename = file.path(
     OUT_DIR,
-    "edfig08_market_readiness.png"
+    "edfig07_market_readiness.png"
   ),
   plot = fig_combined,
   width = SAVE_W_MM,
@@ -788,7 +788,7 @@ ggsave(
 ggsave(
   filename = file.path(
     OUT_DIR,
-    "edfig08_market_readiness.pdf"
+    "edfig07_market_readiness.pdf"
   ),
   plot = fig_combined,
   width = SAVE_W_MM,
