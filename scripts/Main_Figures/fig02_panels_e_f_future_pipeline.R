@@ -37,21 +37,40 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS
+# PROJECT PATHS
 # ------------------------------------------------------------
 
-DATA_DIR <- file.path("data", "Main_Figures")
+find_repo_root <- function(marker = file.path("data", "Main_Figures", "fig02_source_data_foak_framework.xlsx")) {
+  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    candidate <- file.path(path, marker)
+    
+    if (file.exists(candidate)) {
+      return(path)
+    }
+    
+    parent <- dirname(path)
+    
+    if (identical(parent, path)) {
+      stop(
+        "Could not find repository root containing ",
+        marker,
+        "\nCurrent working directory was: ",
+        getwd()
+      )
+    }
+    
+    path <- parent
+  }
+}
 
-FILE <- file.path(
-  DATA_DIR,
-  "fig02_source_data_foak_framework.xlsx"
-)
+REPO_ROOT <- find_repo_root()
 
-OUT_DIR <- file.path(
-  "outputs",
-  "Figure_02",
-  "intermediate"
-)
+DATA_DIR <- file.path(REPO_ROOT, "data", "Main_Figures")
+OUT_DIR  <- file.path(REPO_ROOT, "outputs", "Figure_02", "intermediate")
+
+FILE <- file.path(DATA_DIR, "fig02_source_data_foak_framework.xlsx")
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
@@ -342,7 +361,9 @@ make_panel_plot <- function(
       axis.title.x = element_text(colour = "black", size = 7),
       axis.title.y = element_text(colour = "black", size = 7),
       legend.position = "none",
-      plot.margin = margin(6, 6, 6, 6)
+      plot.margin = margin(6, 6, 6, 6),
+      plot.background  = element_rect(fill = "white", colour = NA),
+      panel.background = element_rect(fill = "white", colour = NA)
     )
   
   ggdraw(p) +
@@ -388,7 +409,12 @@ required_cols <- c(
 missing_cols <- setdiff(required_cols, names(dat))
 
 if (length(missing_cols) > 0) {
-  stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
+  stop(
+    "Missing required columns: ",
+    paste(missing_cols, collapse = ", "),
+    "\n\nAvailable columns are:\n",
+    paste(names(dat), collapse = "\n")
+  )
 }
 
 dat <- dat %>%
@@ -407,9 +433,9 @@ dat <- dat %>%
       num_or_na
     ),
     design = as.character(design),
-    scenario = tolower(trimws(as.character(scenario))),
-    fail_phase = trimws(as.character(fail_phase)),
-    fail_phase = ifelse(fail_phase %in% c("", "NA", "NaN"), NA, fail_phase)
+    scenario = clean_names(as.character(scenario)),
+    fail_phase = clean_names(as.character(fail_phase)),
+    fail_phase = ifelse(fail_phase %in% c("", "na", "nan"), NA_character_, fail_phase)
   )
 
 # ------------------------------------------------------------
@@ -532,7 +558,8 @@ ggsave(
   height = COMBINED_H_MM,
   units = "mm",
   bg = "white",
-  limitsize = FALSE
+  limitsize = FALSE,
+  useDingbats = FALSE
 )
 
 saveRDS(
@@ -549,3 +576,5 @@ saveRDS(
   panel_f_plot,
   file = file.path(OUT_DIR, "fig02_panel_f_future_pipeline_accelerated.rds")
 )
+
+combined_figure
