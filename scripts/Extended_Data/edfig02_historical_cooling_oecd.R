@@ -5,11 +5,11 @@
 # by reactor cooling type and OECD membership.
 #
 # Required input:
-# data/Extended_Data/edfig02_source_data_historical_cooling_oecd_trajectories.xlsx
+# edfig02_source_data_historical_cooling_oecd_trajectories.xlsx
 #
 # Outputs:
-# outputs/Extended_Data/Figure_02/edfig02_historical_cooling_oecd_trajectories.png
-# outputs/Extended_Data/Figure_02/edfig02_historical_cooling_oecd_trajectories.pdf
+# edfig02_historical_cooling_oecd_trajectories.png
+# edfig02_historical_cooling_oecd_trajectories.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -30,65 +30,17 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PROJECT PATHS
+# PATHS
 # ------------------------------------------------------------
 
-find_repo_root <- function(marker = file.path("data", "Extended_Data", "edfig02_source_data_historical_cooling_oecd_trajectories.xlsx")) {
-  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
-  
-  repeat {
-    candidate <- file.path(path, marker)
-    
-    if (file.exists(candidate)) {
-      return(path)
-    }
-    
-    parent <- dirname(path)
-    
-    if (identical(parent, path)) {
-      stop(
-        "Could not find repository root containing ",
-        marker,
-        "\nCurrent working directory was: ",
-        getwd()
-      )
-    }
-    
-    path <- parent
-  }
-}
-
-REPO_ROOT <- find_repo_root()
-
-DATA_DIR <- file.path(
-  REPO_ROOT,
-  "data",
-  "Extended_Data"
-)
-
-FILE <- file.path(
-  DATA_DIR,
-  "edfig02_source_data_historical_cooling_oecd_trajectories.xlsx"
-)
-
-OUT_DIR <- file.path(
-  REPO_ROOT,
-  "outputs",
-  "Extended_Data",
-  "Figure_02"
-)
+FILE <- "edfig02_source_data_historical_cooling_oecd_trajectories.xlsx"
+OUT_DIR <- "."
 
 OUT_BASE <- "edfig02_historical_cooling_oecd_trajectories"
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
-
-dir.create(
-  OUT_DIR,
-  showWarnings = FALSE,
-  recursive = TRUE
-)
 
 # ============================================================
 # EXPORT SETTINGS
