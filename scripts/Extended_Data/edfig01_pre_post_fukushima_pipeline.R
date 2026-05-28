@@ -30,10 +30,38 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS — GITHUB RUN
+# PROJECT PATHS
 # ------------------------------------------------------------
 
+find_repo_root <- function(marker = file.path("data", "Extended_Data", "edfig01_source_data_pre_post_fukushima_pipeline.xlsx")) {
+  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    candidate <- file.path(path, marker)
+    
+    if (file.exists(candidate)) {
+      return(path)
+    }
+    
+    parent <- dirname(path)
+    
+    if (identical(parent, path)) {
+      stop(
+        "Could not find repository root containing ",
+        marker,
+        "\nCurrent working directory was: ",
+        getwd()
+      )
+    }
+    
+    path <- parent
+  }
+}
+
+REPO_ROOT <- find_repo_root()
+
 DATA_DIR <- file.path(
+  REPO_ROOT,
   "data",
   "Extended_Data"
 )
@@ -44,6 +72,7 @@ FILE <- file.path(
 )
 
 OUT_DIR <- file.path(
+  REPO_ROOT,
   "outputs",
   "Extended_Data",
   "Figure_01"
@@ -107,7 +136,9 @@ clean_names_local <- function(x) {
   x <- trimws(x)
   x <- gsub("[[:space:]]+", "_", x)
   x <- gsub("[^A-Za-z0-9_]", "", x)
-  x
+  x <- gsub("_+", "_", x)
+  x <- gsub("^_|_$", "", x)
+  tolower(x)
 }
 
 normalise_event_phase <- function(x) {
@@ -194,6 +225,28 @@ dat <- readxl::read_excel(
 )
 
 names(dat) <- clean_names_local(names(dat))
+
+required_cols <- c(
+  "smr",
+  "cd_start",
+  "failed",
+  "year_of_failure",
+  "failure_phase",
+  "stalled_development",
+  "year_stalled",
+  "stalled_phase"
+)
+
+missing_cols <- required_cols[!required_cols %in% names(dat)]
+
+if (length(missing_cols) > 0) {
+  stop(
+    "Missing required columns in Extended Data Fig. 1 source workbook:\n",
+    paste(missing_cols, collapse = "\n"),
+    "\n\nAvailable columns are:\n",
+    paste(names(dat), collapse = "\n")
+  )
+}
 
 plot_dat <- dat %>%
   mutate(
@@ -514,5 +567,8 @@ ggsave(
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
-  bg = "white"
+  bg = "white",
+  useDingbats = FALSE
 )
+
+p
