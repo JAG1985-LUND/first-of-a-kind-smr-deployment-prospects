@@ -37,34 +37,53 @@ graphics.off()
 # ============================================================
 # FIGURE 2 — PANEL A ONLY
 # Phase-duration distributions from source workbook
+# - Reads phase_durations sheet directly
+# - Builds p_a_core
+# - Builds labelled p_a
+# - Saves PNG/PDF and RDS/core RDS
 # ============================================================
 
 # ------------------------------------------------------------
-# FILE PATHS
+# PROJECT PATHS
 # ------------------------------------------------------------
 
-DATA_DIR <- file.path("data", "Main_Figures")
+find_repo_root <- function(marker = file.path("data", "Main_Figures", "fig02_source_data_foak_framework.xlsx")) {
+  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    candidate <- file.path(path, marker)
+    
+    if (file.exists(candidate)) {
+      return(path)
+    }
+    
+    parent <- dirname(path)
+    
+    if (identical(parent, path)) {
+      stop(
+        "Could not find repository root containing ",
+        marker,
+        "\nCurrent working directory was: ",
+        getwd()
+      )
+    }
+    
+    path <- parent
+  }
+}
 
-FILE <- file.path(
-  DATA_DIR,
-  "fig02_source_data_foak_framework.xlsx"
-)
+REPO_ROOT <- find_repo_root()
 
-OUT_DIR <- file.path(
-  "outputs",
-  "Figure_02",
-  "intermediate"
-)
+DATA_DIR <- file.path(REPO_ROOT, "data", "Main_Figures")
+OUT_DIR  <- file.path(REPO_ROOT, "outputs", "Figure_02", "intermediate")
+
+FILE <- file.path(DATA_DIR, "fig02_source_data_foak_framework.xlsx")
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
 
-dir.create(
-  OUT_DIR,
-  recursive = TRUE,
-  showWarnings = FALSE
-)
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
@@ -161,7 +180,7 @@ map_phase <- function(x) {
     str_detect(x2, "detailed") | str_detect(x2, "\\bdd\\b") ~ "Detailed design",
     str_detect(x2, "licens")                               ~ "Licensing",
     str_detect(x2, "construct")                            ~ "Construction",
-    TRUE                                                   ~ NA_character_
+    TRUE                                                    ~ NA_character_
   )
 }
 
@@ -171,7 +190,7 @@ map_scenario <- function(x) {
   case_when(
     str_detect(x2, "accelerated") | str_detect(x2, "^acc") ~ "Accelerated",
     str_detect(x2, "baseline")    | str_detect(x2, "^bas") ~ "Baseline",
-    TRUE                                                   ~ NA_character_
+    TRUE                                                    ~ NA_character_
   )
 }
 
@@ -180,13 +199,14 @@ map_scenario <- function(x) {
 # ============================================================
 
 sheet_name <- readxl::excel_sheets(FILE)
-sheet_name <- sheet_name[str_detect(tolower(sheet_name), "phase_durations")][1]
+sheet_name <- sheet_name[stringr::str_detect(tolower(sheet_name), "phase_durations")][1]
 
 if (is.na(sheet_name)) {
   stop("Could not find a sheet matching 'phase_durations'.")
 }
 
 raw_a <- readxl::read_excel(FILE, sheet = sheet_name)
+
 names(raw_a) <- clean_names_local(names(raw_a))
 
 required_cols <- c(
@@ -204,19 +224,21 @@ if (length(missing_cols) > 0) {
   stop(
     paste0(
       "Missing required columns in phase_durations sheet:\n",
-      paste(missing_cols, collapse = ", ")
+      paste(missing_cols, collapse = ", "),
+      "\n\nAvailable columns are:\n",
+      paste(names(raw_a), collapse = "\n")
     )
   )
 }
 
 dat_a <- raw_a %>%
   transmute(
-    phase    = map_phase(phase),
+    phase = map_phase(phase),
     scenario = map_scenario(scenario),
-    mu_log   = suppressWarnings(as.numeric(mu_log)),
+    mu_log = suppressWarnings(as.numeric(mu_log)),
     sigma_log = suppressWarnings(as.numeric(sigma_log)),
-    lower    = suppressWarnings(as.numeric(lower)),
-    upper    = suppressWarnings(as.numeric(upper))
+    lower = suppressWarnings(as.numeric(lower)),
+    upper = suppressWarnings(as.numeric(upper))
   ) %>%
   mutate(
     p50 = trunc_lognorm_quantile(0.5, mu_log, sigma_log, lower, upper)
@@ -242,11 +264,7 @@ expected_rows <- expand.grid(
   stringsAsFactors = FALSE
 )
 
-missing_rows <- anti_join(
-  expected_rows,
-  dat_a,
-  by = c("phase", "scenario")
-)
+missing_rows <- anti_join(expected_rows, dat_a, by = c("phase", "scenario"))
 
 if (nrow(missing_rows) > 0) {
   stop(
@@ -271,7 +289,7 @@ density_list <- lapply(seq_len(nrow(dat_a)), function(i) {
   )
   
   dens <- trunc_lognorm_density(
-    x       = x_seq,
+    x = x_seq,
     meanlog = row_i$mu_log,
     sdlog   = row_i$sigma_log,
     lower   = row_i$lower,
@@ -305,10 +323,7 @@ density_df <- bind_rows(density_list)
 median_df <- density_df %>%
   group_by(phase, scenario, centre) %>%
   summarise(
-    p50 = dat_a$p50[match(
-      paste(phase, scenario),
-      paste(dat_a$phase, dat_a$scenario)
-    )][1],
+    p50 = dat_a$p50[match(paste(phase, scenario), paste(dat_a$phase, dat_a$scenario))][1],
     y_bottom = approx(x, y_bottom, xout = p50, rule = 2)$y,
     y_top    = approx(x, y_top,    xout = p50, rule = 2)$y,
     .groups = "drop"
@@ -353,14 +368,8 @@ p_a_core <- ggplot() +
     colour = "black",
     linewidth = 0.72
   ) +
-  scale_fill_manual(
-    values = phase_colors,
-    guide = "none"
-  ) +
-  scale_colour_manual(
-    values = scenario_line_colors,
-    guide = "none"
-  ) +
+  scale_fill_manual(values = phase_colors, guide = "none") +
+  scale_colour_manual(values = scenario_line_colors, guide = "none") +
   scale_x_continuous(
     limits = c(X_MIN, X_MAX),
     breaks = seq(0, 14, by = 2),
@@ -394,7 +403,9 @@ p_a_core <- ggplot() +
     axis.ticks.x = element_line(colour = "grey35", linewidth = 0.3),
     axis.ticks.y = element_blank(),
     axis.ticks.length = unit(2.5, "pt"),
-    plot.margin = margin(t = 8, r = 8, b = 8, l = 8)
+    plot.margin = margin(t = 8, r = 8, b = 8, l = 8),
+    plot.background  = element_rect(fill = "white", colour = NA),
+    panel.background = element_rect(fill = "white", colour = NA)
   )
 
 # ============================================================
@@ -434,7 +445,8 @@ ggsave(
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
-  bg = "white"
+  bg = "white",
+  useDingbats = FALSE
 )
 
 saveRDS(
@@ -446,3 +458,5 @@ saveRDS(
   p_a_core,
   file = file.path(OUT_DIR, paste0(FILE_STUB, "_core.rds"))
 )
+
+p_a
