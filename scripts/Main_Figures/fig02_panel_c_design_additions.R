@@ -13,10 +13,10 @@
 # None. Panel c is generated from the design-entry assumptions specified below.
 #
 # Outputs:
-# outputs/Figure_02/intermediate/fig02_panel_c_design_additions.png
-# outputs/Figure_02/intermediate/fig02_panel_c_design_additions.pdf
-# outputs/Figure_02/intermediate/fig02_panel_c_design_additions.rds
-# outputs/Figure_02/intermediate/fig02_panel_c_design_additions_core.rds
+# fig02_panel_c_design_additions.png
+# fig02_panel_c_design_additions.pdf
+# fig02_panel_c_design_additions.rds
+# fig02_panel_c_design_additions_core.rds
 
 suppressPackageStartupMessages({
   library(ggplot2)
@@ -35,48 +35,10 @@ set.seed(42)
 # ============================================================
 
 # ------------------------------------------------------------
-# PROJECT PATHS
+# PATHS
 # ------------------------------------------------------------
 
-find_repo_root <- function(markers = c(".git", file.path("data", "Main_Figures"))) {
-  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
-  
-  repeat {
-    marker_found <- any(file.exists(file.path(path, markers)))
-    
-    if (marker_found) {
-      return(path)
-    }
-    
-    parent <- dirname(path)
-    
-    if (identical(parent, path)) {
-      stop(
-        "Could not find repository root containing one of these markers:\n",
-        paste(markers, collapse = "\n"),
-        "\n\nCurrent working directory was: ",
-        getwd()
-      )
-    }
-    
-    path <- parent
-  }
-}
-
-REPO_ROOT <- find_repo_root()
-
-OUT_DIR <- file.path(
-  REPO_ROOT,
-  "outputs",
-  "Figure_02",
-  "intermediate"
-)
-
-dir.create(
-  OUT_DIR,
-  recursive = TRUE,
-  showWarnings = FALSE
-)
+OUT_DIR <- "."
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
