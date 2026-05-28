@@ -5,11 +5,11 @@
 # by reactor cooling type and OECD membership.
 #
 # Required input:
-# data/Extended_Data/edfig02_source_data_historical_cooling_oecd.xlsx
+# data/Extended_Data/edfig02_source_data_historical_cooling_oecd_trajectories.xlsx
 #
 # Outputs:
-# outputs/Extended_Data/Figure_02/edfig02_historical_cooling_oecd.png
-# outputs/Extended_Data/Figure_02/edfig02_historical_cooling_oecd.pdf
+# outputs/Extended_Data/Figure_02/edfig02_historical_cooling_oecd_trajectories.png
+# outputs/Extended_Data/Figure_02/edfig02_historical_cooling_oecd_trajectories.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -30,10 +30,38 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS — GITHUB RUN
+# PROJECT PATHS
 # ------------------------------------------------------------
 
+find_repo_root <- function(marker = file.path("data", "Extended_Data", "edfig02_source_data_historical_cooling_oecd_trajectories.xlsx")) {
+  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    candidate <- file.path(path, marker)
+    
+    if (file.exists(candidate)) {
+      return(path)
+    }
+    
+    parent <- dirname(path)
+    
+    if (identical(parent, path)) {
+      stop(
+        "Could not find repository root containing ",
+        marker,
+        "\nCurrent working directory was: ",
+        getwd()
+      )
+    }
+    
+    path <- parent
+  }
+}
+
+REPO_ROOT <- find_repo_root()
+
 DATA_DIR <- file.path(
+  REPO_ROOT,
   "data",
   "Extended_Data"
 )
@@ -44,6 +72,7 @@ FILE <- file.path(
 )
 
 OUT_DIR <- file.path(
+  REPO_ROOT,
   "outputs",
   "Extended_Data",
   "Figure_02"
@@ -102,6 +131,14 @@ oecd_palette <- c(
 # ============================================================
 # HELPERS
 # ============================================================
+
+clean_names_local <- function(x) {
+  x <- trimws(x)
+  x <- gsub("[[:space:][:punct:]]+", "_", x)
+  x <- gsub("_+", "_", x)
+  x <- gsub("^_|_$", "", x)
+  tolower(x)
+}
 
 is_oecd_flag <- function(x) {
   toupper(trimws(as.character(x))) %in% c(
@@ -209,12 +246,34 @@ base_theme <- theme_classic(base_size = 7) +
 
 df_raw <- readxl::read_excel(FILE)
 
+names(df_raw) <- clean_names_local(names(df_raw))
+
+required_cols <- c(
+  "smr",
+  "phase",
+  "cooling_type",
+  "oecd",
+  "cd_start"
+)
+
+missing_cols <- required_cols[!required_cols %in% names(df_raw)]
+
+if (length(missing_cols) > 0) {
+  stop(
+    "Missing required columns in Extended Data Fig. 2 source workbook:\n",
+    paste(missing_cols, collapse = "\n"),
+    "\n\nAvailable columns are:\n",
+    paste(names(df_raw), collapse = "\n")
+  )
+}
+
 df <- df_raw %>%
   mutate(
-    Phase = trimws(as.character(Phase)),
+    SMR = as.character(smr),
+    Phase = trimws(as.character(phase)),
     cooling_type = recode_cooling(cooling_type),
     oecd_group = if_else(
-      is_oecd_flag(OECD),
+      is_oecd_flag(oecd),
       "OECD",
       "Non-OECD"
     ),
@@ -224,7 +283,7 @@ df <- df_raw %>%
       "Non-water-cooled"
     ),
     CD_Start = suppressWarnings(
-      as.integer(round(as.numeric(CD_Start)))
+      as.integer(round(as.numeric(cd_start)))
     )
   ) %>%
   filter(
@@ -507,7 +566,8 @@ ggsave(
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
-  bg = "white"
+  bg = "white",
+  useDingbats = FALSE
 )
 
 fig
