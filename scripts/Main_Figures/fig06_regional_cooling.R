@@ -22,7 +22,7 @@
 # over time.
 #
 # Required input:
-# data/Main_Figures/fig06_source_data_regional_cooling.xlsx
+# data/Main_Figures/fig06_source_data_regional_deployment_cooling_type.xlsx
 #   - sheet: regional_deployment
 #   - sheet: cooling_type
 #
@@ -48,30 +48,64 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS
+# PROJECT PATHS
 # ------------------------------------------------------------
 
-DATA_DIR <- file.path("data", "Main_Figures")
+find_repo_root <- function(marker = file.path("data", "Main_Figures", "fig06_source_data_regional_deployment_cooling_type.xlsx")) {
+  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    candidate <- file.path(path, marker)
+    
+    if (file.exists(candidate)) {
+      return(path)
+    }
+    
+    parent <- dirname(path)
+    
+    if (identical(parent, path)) {
+      stop(
+        "Could not find repository root containing ",
+        marker,
+        "\nCurrent working directory was: ",
+        getwd()
+      )
+    }
+    
+    path <- parent
+  }
+}
 
-FILE <- file.path(
-  DATA_DIR,
-  "fig06_source_data_regional_cooling.xlsx"
-)
+REPO_ROOT <- find_repo_root()
 
-OUT_DIR <- file.path(
-  "outputs",
-  "Figure_06"
-)
+DATA_DIR <- file.path(REPO_ROOT, "data", "Main_Figures")
+OUT_DIR  <- file.path(REPO_ROOT, "outputs", "Figure_06")
+
+FILE <- file.path(DATA_DIR, "fig06_source_data_regional_deployment_cooling_type.xlsx")
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
 
-dir.create(
-  OUT_DIR,
-  recursive = TRUE,
-  showWarnings = FALSE
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+
+available_sheets <- readxl::excel_sheets(FILE)
+
+required_sheets <- c(
+  "regional_deployment",
+  "cooling_type"
 )
+
+missing_sheets <- required_sheets[!required_sheets %in% available_sheets]
+
+if (length(missing_sheets) > 0) {
+  stop(
+    "Missing required sheet(s) in workbook:\n",
+    paste(missing_sheets, collapse = "\n"),
+    "\n\nAvailable sheets are:\n",
+    paste(available_sheets, collapse = "\n")
+  )
+}
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
@@ -178,7 +212,7 @@ add_panel_decorations <- function(plot_obj, tag, title_text) {
       hjust = 0,
       vjust = 1,
       size = TAG_SIZE,
-      fontface = "bold"
+      fontface = "plain"
     ) +
     draw_label(
       title_text,
@@ -195,8 +229,26 @@ add_panel_decorations <- function(plot_obj, tag, title_text) {
 # PANELS A-B — REGIONAL CUMULATIVE DEPLOYMENT
 # ============================================================
 
-df_reg <- read_excel(FILE, sheet = "regional_deployment")
+df_reg <- readxl::read_excel(FILE, sheet = "regional_deployment")
 names(df_reg) <- clean_names_local(names(df_reg))
+
+required_cols_reg <- c(
+  "year",
+  "region",
+  "baseline",
+  "accelerated"
+)
+
+missing_cols_reg <- required_cols_reg[!required_cols_reg %in% names(df_reg)]
+
+if (length(missing_cols_reg) > 0) {
+  stop(
+    "Missing required columns in regional_deployment sheet:\n",
+    paste(missing_cols_reg, collapse = "\n"),
+    "\n\nAvailable columns are:\n",
+    paste(names(df_reg), collapse = "\n")
+  )
+}
 
 plot_df_reg <- df_reg %>%
   mutate(
@@ -278,8 +330,27 @@ p_b <- add_panel_decorations(p_b_core, "b", "Accelerated scenario")
 # PANELS C-D — COOLING-TYPE COMPOSITION BY REGION IN 2050
 # ============================================================
 
-df_cool <- read_excel(FILE, sheet = "cooling_type")
+df_cool <- readxl::read_excel(FILE, sheet = "cooling_type")
 names(df_cool) <- clean_names_local(names(df_cool))
+
+required_cols_cool <- c(
+  "year",
+  "region",
+  "cooling_type",
+  "baseline",
+  "accelerated"
+)
+
+missing_cols_cool <- required_cols_cool[!required_cols_cool %in% names(df_cool)]
+
+if (length(missing_cols_cool) > 0) {
+  stop(
+    "Missing required columns in cooling_type sheet:\n",
+    paste(missing_cols_cool, collapse = "\n"),
+    "\n\nAvailable columns are:\n",
+    paste(names(df_cool), collapse = "\n")
+  )
+}
 
 plot_df_cool <- df_cool %>%
   mutate(
