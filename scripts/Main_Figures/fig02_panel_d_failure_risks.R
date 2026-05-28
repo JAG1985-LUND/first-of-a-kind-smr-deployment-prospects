@@ -13,10 +13,10 @@
 # None. Failure-rate assumptions for this panel are defined directly below.
 #
 # Outputs:
-# outputs/Figure_02/intermediate/fig02_panel_d_failure_risks.png
-# outputs/Figure_02/intermediate/fig02_panel_d_failure_risks.pdf
-# outputs/Figure_02/intermediate/fig02_panel_d_failure_risks.rds
-# outputs/Figure_02/intermediate/fig02_panel_d_failure_risks_core.rds
+# fig02_panel_d_failure_risks.png
+# fig02_panel_d_failure_risks.pdf
+# fig02_panel_d_failure_risks.rds
+# fig02_panel_d_failure_risks_core.rds
 
 suppressPackageStartupMessages({
   library(ggplot2)
@@ -35,48 +35,10 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PROJECT PATHS
+# PATHS
 # ------------------------------------------------------------
 
-find_repo_root <- function(markers = c(".git", file.path("data", "Main_Figures"))) {
-  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
-  
-  repeat {
-    marker_found <- any(file.exists(file.path(path, markers)))
-    
-    if (marker_found) {
-      return(path)
-    }
-    
-    parent <- dirname(path)
-    
-    if (identical(parent, path)) {
-      stop(
-        "Could not find repository root containing one of these markers:\n",
-        paste(markers, collapse = "\n"),
-        "\n\nCurrent working directory was: ",
-        getwd()
-      )
-    }
-    
-    path <- parent
-  }
-}
-
-REPO_ROOT <- find_repo_root()
-
-OUT_DIR <- file.path(
-  REPO_ROOT,
-  "outputs",
-  "Figure_02",
-  "intermediate"
-)
-
-dir.create(
-  OUT_DIR,
-  recursive = TRUE,
-  showWarnings = FALSE
-)
+OUT_DIR <- "."
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
