@@ -13,11 +13,11 @@
 # development.
 #
 # Required input:
-# data/Extended_Data/edfig05_source_data_counterfactual_scenarios.xlsx
+# edfig05_source_data_counterfactual_scenarios.xlsx
 #
 # Outputs:
-# outputs/Extended_Data/Figure_05/edfig05_counterfactual_scenario_space.png
-# outputs/Extended_Data/Figure_05/edfig05_counterfactual_scenario_space.pdf
+# edfig05_counterfactual_scenario_space.png
+# edfig05_counterfactual_scenario_space.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -36,30 +36,15 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS — GITHUB RUN
+# PATHS
 # ------------------------------------------------------------
 
-FILE_IN <- file.path(
-  "data",
-  "Extended_Data",
-  "edfig05_source_data_counterfactual_scenarios.xlsx"
-)
-
-OUT_DIR <- file.path(
-  "outputs",
-  "Extended_Data",
-  "Figure_05"
-)
+FILE_IN <- "edfig05_source_data_counterfactual_scenarios.xlsx"
+OUT_DIR <- "."
 
 if (!file.exists(FILE_IN)) {
   stop("Input file not found: ", FILE_IN)
 }
-
-dir.create(
-  OUT_DIR,
-  recursive = TRUE,
-  showWarnings = FALSE
-)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
@@ -87,9 +72,8 @@ PANEL_TAG_SIZE   <- 11
 
 df <- readxl::read_excel(FILE_IN)
 
-names(df) <- names(df) |>
-  trimws() |>
-  gsub("[[:space:]]+", "_", x = _)
+names(df) <- trimws(names(df))
+names(df) <- gsub("[[:space:]]+", "_", names(df))
 
 if ("p90_accerlerated_scenario" %in% names(df)) {
   names(df)[names(df) == "p90_accerlerated_scenario"] <- "p90_accelerated_scenario"
@@ -418,7 +402,8 @@ ggsave(
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
-  bg = "white"
+  bg = "white",
+  useDingbats = FALSE
 )
 
 final_plot
