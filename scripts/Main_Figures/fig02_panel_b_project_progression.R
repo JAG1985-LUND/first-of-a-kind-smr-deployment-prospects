@@ -41,21 +41,40 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# FILE PATHS
+# PROJECT PATHS
 # ------------------------------------------------------------
 
-DATA_DIR <- file.path("data", "Main_Figures")
+find_repo_root <- function(marker = file.path("data", "Main_Figures", "fig02_source_data_foak_framework.xlsx")) {
+  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    candidate <- file.path(path, marker)
+    
+    if (file.exists(candidate)) {
+      return(path)
+    }
+    
+    parent <- dirname(path)
+    
+    if (identical(parent, path)) {
+      stop(
+        "Could not find repository root containing ",
+        marker,
+        "\nCurrent working directory was: ",
+        getwd()
+      )
+    }
+    
+    path <- parent
+  }
+}
 
-FILE <- file.path(
-  DATA_DIR,
-  "fig02_source_data_foak_framework.xlsx"
-)
+REPO_ROOT <- find_repo_root()
 
-OUT_DIR <- file.path(
-  "outputs",
-  "Figure_02",
-  "intermediate"
-)
+DATA_DIR <- file.path(REPO_ROOT, "data", "Main_Figures")
+OUT_DIR  <- file.path(REPO_ROOT, "outputs", "Figure_02", "intermediate")
+
+FILE <- file.path(DATA_DIR, "fig02_source_data_foak_framework.xlsx")
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
@@ -125,13 +144,14 @@ clean_names_local <- function(x) {
 # ============================================================
 
 sheet_name <- readxl::excel_sheets(FILE)
-sheet_name <- sheet_name[str_detect(tolower(sheet_name), "project_progression")][1]
+sheet_name <- sheet_name[stringr::str_detect(tolower(sheet_name), "project_progression")][1]
 
 if (is.na(sheet_name)) {
   stop("Could not find a sheet matching 'project_progression'.")
 }
 
 raw_b <- readxl::read_excel(FILE, sheet = sheet_name)
+
 names(raw_b) <- clean_names_local(names(raw_b))
 
 required_cols <- c(
@@ -152,7 +172,9 @@ if (length(missing_cols) > 0) {
   stop(
     paste0(
       "Missing required columns in project_progression sheet:\n",
-      paste(missing_cols, collapse = ", ")
+      paste(missing_cols, collapse = ", "),
+      "\n\nAvailable columns are:\n",
+      paste(names(raw_b), collapse = "\n")
     )
   )
 }
@@ -180,7 +202,10 @@ row_key <- tibble(
   Design = order_top_to_bottom,
   y = c(6, 5, 4, 3, 2, 1),
   RowLabel = c("P10", "P50", "P90", "P10", "P50", "P90"),
-  ScenarioGroup = c("Baseline", "Baseline", "Baseline", "Accelerated", "Accelerated", "Accelerated")
+  ScenarioGroup = c(
+    "Baseline", "Baseline", "Baseline",
+    "Accelerated", "Accelerated", "Accelerated"
+  )
 )
 
 dat_b <- dat_b %>%
@@ -225,7 +250,13 @@ plot_df_b <- dat_b %>%
     Phase = factor(
       Phase,
       levels = c("CD", "BD", "DD", "Lic", "Con"),
-      labels = c("Conceptual design", "Basic design", "Detailed design", "Licensing", "Construction")
+      labels = c(
+        "Conceptual design",
+        "Basic design",
+        "Detailed design",
+        "Licensing",
+        "Construction"
+      )
     )
   ) %>%
   filter(!is.na(start), !is.na(end))
@@ -265,7 +296,13 @@ B_X_MAX <- max(dat_b$FOAK_P90, na.rm = TRUE) + 0.8
 p_b_core <- ggplot() +
   geom_segment(
     data = plot_df_b,
-    aes(y = y, x = start, xend = end, yend = y, colour = Phase),
+    aes(
+      y = y,
+      x = start,
+      xend = end,
+      yend = y,
+      colour = Phase
+    ),
     linewidth = 2.5,
     lineend = "butt"
   ) +
@@ -386,7 +423,9 @@ p_b_core <- ggplot() +
     axis.line.y  = element_line(colour = "grey35", linewidth = 0.3),
     axis.ticks   = element_line(colour = "grey35", linewidth = 0.3),
     axis.ticks.length = unit(2.5, "pt"),
-    plot.margin = margin(t = 8, r = 8, b = 8, l = 12)
+    plot.margin = margin(t = 8, r = 8, b = 8, l = 12),
+    plot.background  = element_rect(fill = "white", colour = NA),
+    panel.background = element_rect(fill = "white", colour = NA)
   )
 
 # ============================================================
@@ -426,7 +465,8 @@ ggsave(
   width = SAVE_W_MM_B,
   height = SAVE_H_MM_B,
   units = "mm",
-  bg = "white"
+  bg = "white",
+  useDingbats = FALSE
 )
 
 saveRDS(
@@ -438,3 +478,5 @@ saveRDS(
   p_b_core,
   file = file.path(OUT_DIR, paste0(FILE_STUB_B, "_core.rds"))
 )
+
+p_b
