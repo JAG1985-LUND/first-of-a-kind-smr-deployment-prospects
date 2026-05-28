@@ -37,15 +37,15 @@ graphics.off()
 # PATHS
 # ------------------------------------------------------------
 
-FILE_IN <- "edfig07_source_data_market_readiness.xlsx"
+FILE <- "edfig07_source_data_market_readiness.xlsx"
 
 SHEET_A <- "kang_2026_trl"
 SHEET_B <- "NEA_market_readiness"
 
 OUT_DIR <- "."
 
-if (!file.exists(FILE_IN)) {
-  stop("Input file not found: ", FILE_IN)
+if (!file.exists(FILE)) {
+  stop("Input file not found: ", FILE)
 }
 
 # ------------------------------------------------------------
@@ -104,12 +104,12 @@ pick_col <- function(nms, patterns) {
       ignore.case = TRUE,
       value = TRUE
     )
-    
+
     if (length(hit) > 0) {
       return(hit[1])
     }
   }
-  
+
   NA_character_
 }
 
@@ -189,7 +189,7 @@ theme_base <- theme_classic(base_size = BASE_SIZE) +
 # ============================================================
 
 raw_a <- readxl::read_excel(
-  FILE_IN,
+  FILE,
   sheet = SHEET_A
 )
 
@@ -268,7 +268,7 @@ df_a_long <- df_a %>%
 # ============================================================
 
 raw_b <- readxl::read_excel(
-  FILE_IN,
+  FILE,
   sheet = SHEET_B
 )
 
