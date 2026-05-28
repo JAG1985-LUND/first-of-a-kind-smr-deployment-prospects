@@ -11,14 +11,14 @@
 # Accelerated scenario assumptions; vertical ticks indicate median durations.
 #
 # Required input:
-# data/Main_Figures/fig02_source_data_foak_framework.xlsx
+# fig02_source_data_foak_framework.xlsx
 #   - sheet: phase_durations
 #
 # Outputs:
-# outputs/Figure_02/intermediate/Framework_panel_A_duration_distributions_centred.png
-# outputs/Figure_02/intermediate/Framework_panel_A_duration_distributions_centred.pdf
-# outputs/Figure_02/intermediate/Framework_panel_A_duration_distributions_centred.rds
-# outputs/Figure_02/intermediate/Framework_panel_A_duration_distributions_centred_core.rds
+# Framework_panel_A_duration_distributions_centred.png
+# Framework_panel_A_duration_distributions_centred.pdf
+# Framework_panel_A_duration_distributions_centred.rds
+# Framework_panel_A_duration_distributions_centred_core.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -37,53 +37,18 @@ graphics.off()
 # ============================================================
 # FIGURE 2 — PANEL A ONLY
 # Phase-duration distributions from source workbook
-# - Reads phase_durations sheet directly
-# - Builds p_a_core
-# - Builds labelled p_a
-# - Saves PNG/PDF and RDS/core RDS
 # ============================================================
 
 # ------------------------------------------------------------
-# PROJECT PATHS
+# PATHS
 # ------------------------------------------------------------
 
-find_repo_root <- function(marker = file.path("data", "Main_Figures", "fig02_source_data_foak_framework.xlsx")) {
-  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
-  
-  repeat {
-    candidate <- file.path(path, marker)
-    
-    if (file.exists(candidate)) {
-      return(path)
-    }
-    
-    parent <- dirname(path)
-    
-    if (identical(parent, path)) {
-      stop(
-        "Could not find repository root containing ",
-        marker,
-        "\nCurrent working directory was: ",
-        getwd()
-      )
-    }
-    
-    path <- parent
-  }
-}
-
-REPO_ROOT <- find_repo_root()
-
-DATA_DIR <- file.path(REPO_ROOT, "data", "Main_Figures")
-OUT_DIR  <- file.path(REPO_ROOT, "outputs", "Figure_02", "intermediate")
-
-FILE <- file.path(DATA_DIR, "fig02_source_data_foak_framework.xlsx")
+FILE <- "fig02_source_data_foak_framework.xlsx"
+OUT_DIR <- "."
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
-
-dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
