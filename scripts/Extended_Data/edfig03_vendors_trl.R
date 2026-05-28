@@ -5,11 +5,11 @@
 # modelled FOAK deployment years mapped against technology readiness levels.
 #
 # Required input:
-# data/Extended_Data/edfig03_source_data_vendors_trl.xlsx
+# edfig03_source_data_vendors_trl.xlsx
 #
 # Outputs:
-# outputs/Extended_Data/Figure_03/edfig03_vendors_trl.png
-# outputs/Extended_Data/Figure_03/edfig03_vendors_trl.pdf
+# edfig03_vendors_trl.png
+# edfig03_vendors_trl.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -28,59 +28,15 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PROJECT PATHS
+# PATHS
 # ------------------------------------------------------------
 
-find_repo_root <- function(marker = file.path("data", "Extended_Data", "edfig03_source_data_vendors_trl.xlsx")) {
-  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
-  
-  repeat {
-    candidate <- file.path(path, marker)
-    
-    if (file.exists(candidate)) {
-      return(path)
-    }
-    
-    parent <- dirname(path)
-    
-    if (identical(parent, path)) {
-      stop(
-        "Could not find repository root containing ",
-        marker,
-        "\nCurrent working directory was: ",
-        getwd()
-      )
-    }
-    
-    path <- parent
-  }
-}
-
-REPO_ROOT <- find_repo_root()
-
-FILE_IN <- file.path(
-  REPO_ROOT,
-  "data",
-  "Extended_Data",
-  "edfig03_source_data_vendors_trl.xlsx"
-)
-
-OUT_DIR <- file.path(
-  REPO_ROOT,
-  "outputs",
-  "Extended_Data",
-  "Figure_03"
-)
+FILE_IN <- "edfig03_source_data_vendors_trl.xlsx"
+OUT_DIR <- "."
 
 if (!file.exists(FILE_IN)) {
   stop("Input file not found: ", FILE_IN)
 }
-
-dir.create(
-  OUT_DIR,
-  recursive = TRUE,
-  showWarnings = FALSE
-)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
