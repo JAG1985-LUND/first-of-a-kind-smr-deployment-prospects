@@ -14,9 +14,9 @@
 # Panel b shows historical FOAK SMR deployment and projected cumulative FOAK
 # deployment for the full modelled pipeline, including currently active designs
 # and simulated post-2025 design additions. The black line shows historical FOAK
-# operation, the blue line shows vendor-announced targets, while grey and green
-# lines show Baseline and Accelerated median projections with scenario-space
-# ranges. Shaded bands indicate the corresponding uncertainty ranges.
+# operation, while grey and green lines show Baseline and Accelerated median
+# projections with scenario-space ranges. Shaded bands indicate the
+# corresponding uncertainty ranges.
 #
 # Required input:
 # data/Main_Figures/fig04_source_foak_deployment_2050.xlsx
@@ -50,18 +50,45 @@ graphics.off()
 # PROJECT PATHS
 # ------------------------------------------------------------
 
-DATA_DIR <- file.path("data", "Main_Figures")
-OUT_DIR  <- file.path("outputs", "Figure_04")
+find_repo_root <- function(marker = file.path("data", "Main_Figures", "fig04_source_foak_deployment_2050.xlsx")) {
+  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    candidate <- file.path(path, marker)
+    
+    if (file.exists(candidate)) {
+      return(path)
+    }
+    
+    parent <- dirname(path)
+    
+    if (identical(parent, path)) {
+      stop(
+        "Could not find repository root containing ",
+        marker,
+        "\nCurrent working directory was: ",
+        getwd()
+      )
+    }
+    
+    path <- parent
+  }
+}
+
+REPO_ROOT <- find_repo_root()
+
+DATA_DIR <- file.path(REPO_ROOT, "data", "Main_Figures")
+OUT_DIR  <- file.path(REPO_ROOT, "outputs", "Figure_04")
 
 FILE <- file.path(DATA_DIR, "fig04_source_foak_deployment_2050.xlsx")
-
-dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
 
-available_sheets <- excel_sheets(FILE)
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+
+available_sheets <- readxl::excel_sheets(FILE)
 
 required_sheets <- c(
   "global_outlook",
@@ -134,6 +161,10 @@ col_bas_fill  <- "grey70"
 col_acc_line  <- "#228B22"
 col_acc_fill  <- "#90EE90"
 
+# ------------------------------------------------------------
+# STANDARDISED RIBBON ALPHAS
+# ------------------------------------------------------------
+
 ALPHA_BASE <- 0.50
 ALPHA_ACC  <- 0.40
 
@@ -172,6 +203,7 @@ hide_zero <- function(x) {
 get_first_col <- function(data, patterns, label) {
   hits <- names(data)[Reduce(`|`, lapply(patterns, function(p) str_detect(names(data), p)))]
   hits <- hits[!duplicated(hits)]
+  
   if (length(hits) == 0) {
     stop(
       "Could not find column for: ", label,
@@ -179,42 +211,8 @@ get_first_col <- function(data, patterns, label) {
       paste(names(data), collapse = "\n")
     )
   }
+  
   hits[1]
-}
-
-standardise_sheet <- function(sheet) {
-  df <- read_excel(FILE, sheet = sheet) %>%
-    select(where(~ !all(is.na(.x))))
-
-  names(df) <- clean_names_local(names(df))
-  df
-}
-
-read_counterfactual_sheet <- function(sheet, value_patterns) {
-  df <- standardise_sheet(sheet)
-
-  if (!"group" %in% names(df)) {
-    stop("No group column found in sheet: ", sheet)
-  }
-
-  if (!"scenario" %in% names(df)) {
-    stop("No scenario column found in sheet: ", sheet)
-  }
-
-  if (!"year" %in% names(df)) {
-    stop("No year column found in sheet: ", sheet)
-  }
-
-  value_col <- get_first_col(df, value_patterns, paste0(sheet, " median value"))
-
-  df %>%
-    mutate(
-      group = clean_names_local(as.character(group)),
-      scenario = clean_names_local(as.character(scenario)),
-      year = as.numeric(year),
-      value = as.numeric(.data[[value_col]])
-    ) %>%
-    select(year, group, scenario, value)
 }
 
 theme_locked <- theme_classic(base_size = BASE_SIZE) +
@@ -257,6 +255,41 @@ add_panel_decorations <- function(plot_obj, tag, title_text, title_x = 0.56, tit
       size = TITLE_SIZE,
       fontface = "bold"
     )
+}
+
+standardise_sheet <- function(sheet) {
+  df <- readxl::read_excel(FILE, sheet = sheet) %>%
+    select(where(~ !all(is.na(.x))))
+  
+  names(df) <- clean_names_local(names(df))
+  df
+}
+
+read_counterfactual_sheet <- function(sheet, value_patterns) {
+  df <- standardise_sheet(sheet)
+  
+  if (!"group" %in% names(df)) {
+    stop("No group column found in sheet: ", sheet)
+  }
+  
+  if (!"scenario" %in% names(df)) {
+    stop("No scenario column found in sheet: ", sheet)
+  }
+  
+  if (!"year" %in% names(df)) {
+    stop("No year column found in sheet: ", sheet)
+  }
+  
+  value_col <- get_first_col(df, value_patterns, paste0(sheet, " median value"))
+  
+  df %>%
+    mutate(
+      group = clean_names_local(as.character(group)),
+      scenario = clean_names_local(as.character(scenario)),
+      year = as.numeric(year),
+      value = as.numeric(.data[[value_col]])
+    ) %>%
+    select(year, group, scenario, value)
 }
 
 # ============================================================
@@ -419,28 +452,48 @@ p_a_core <- ggplot() +
     colour = NA
   ) +
   geom_segment(
-    aes(x = display_start_year, xend = vendor_horizon, y = vendor_target_h, yend = vendor_target_h),
+    aes(
+      x = display_start_year,
+      xend = vendor_horizon,
+      y = vendor_target_h,
+      yend = vendor_target_h
+    ),
     colour = col_vendor_line,
     linewidth = LW_GUIDE,
     linetype = "22",
     lineend = "butt"
   ) +
   geom_segment(
-    aes(x = vendor_horizon, xend = vendor_horizon, y = 0, yend = vendor_target_h),
+    aes(
+      x = vendor_horizon,
+      xend = vendor_horizon,
+      y = 0,
+      yend = vendor_target_h
+    ),
     colour = col_vendor_line,
     linewidth = LW_GUIDE,
     linetype = "22",
     lineend = "butt"
   ) +
   geom_segment(
-    aes(x = display_start_year, xend = vendor_horizon, y = vendor_bas_h, yend = vendor_bas_h),
+    aes(
+      x = display_start_year,
+      xend = vendor_horizon,
+      y = vendor_bas_h,
+      yend = vendor_bas_h
+    ),
     colour = col_bas_line,
     linewidth = LW_GUIDE,
     linetype = "22",
     lineend = "butt"
   ) +
   geom_segment(
-    aes(x = display_start_year, xend = vendor_horizon, y = vendor_acc_h, yend = vendor_acc_h),
+    aes(
+      x = display_start_year,
+      xend = vendor_horizon,
+      y = vendor_acc_h,
+      yend = vendor_acc_h
+    ),
     colour = col_acc_line,
     linewidth = LW_GUIDE,
     linetype = "22",
@@ -584,8 +637,6 @@ observed_bridge_b <- observed_line_b %>%
 observed_line_b <- bind_rows(observed_line_b, observed_bridge_b) %>%
   arrange(year)
 
-vendor_line_b <- vendor_line_a
-
 baseline_line_b <- base_ref_b %>%
   filter(year >= scenario_start_year)
 
@@ -609,13 +660,6 @@ p_b_core <- ggplot() +
     data = observed_line_b,
     aes(x = year, y = value, colour = label),
     linewidth = LW_HIST,
-    direction = "hv",
-    lineend = "round"
-  ) +
-  geom_step(
-    data = vendor_line_b,
-    aes(x = year, y = value, colour = label),
-    linewidth = LW_VENDOR,
     direction = "hv",
     lineend = "round"
   ) +
