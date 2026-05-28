@@ -28,16 +28,45 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS — GITHUB RUN
+# PROJECT PATHS
 # ------------------------------------------------------------
 
+find_repo_root <- function(marker = file.path("data", "Extended_Data", "edfig03_source_data_vendors_trl.xlsx")) {
+  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    candidate <- file.path(path, marker)
+    
+    if (file.exists(candidate)) {
+      return(path)
+    }
+    
+    parent <- dirname(path)
+    
+    if (identical(parent, path)) {
+      stop(
+        "Could not find repository root containing ",
+        marker,
+        "\nCurrent working directory was: ",
+        getwd()
+      )
+    }
+    
+    path <- parent
+  }
+}
+
+REPO_ROOT <- find_repo_root()
+
 FILE_IN <- file.path(
+  REPO_ROOT,
   "data",
   "Extended_Data",
   "edfig03_source_data_vendors_trl.xlsx"
 )
 
 OUT_DIR <- file.path(
+  REPO_ROOT,
   "outputs",
   "Extended_Data",
   "Figure_03"
@@ -99,6 +128,32 @@ COL_BASE   <- "grey40"
 COL_ACC    <- "#228B22"
 
 # ------------------------------------------------------------
+# HELPERS
+# ------------------------------------------------------------
+
+clean_names_local <- function(x) {
+  x <- trimws(x)
+  x <- gsub("[[:space:][:punct:]]+", "_", x)
+  x <- gsub("_+", "_", x)
+  x <- gsub("^_|_$", "", x)
+  tolower(x)
+}
+
+normalise_phase <- function(x) {
+  key <- tolower(trimws(as.character(x)))
+  key <- gsub("[[:space:]-]+", "_", key)
+  
+  dplyr::case_when(
+    grepl("conceptual", key) ~ "Conceptual design",
+    grepl("basic", key)      ~ "Basic design",
+    grepl("detailed", key)   ~ "Detailed design",
+    grepl("licens", key)     ~ "Licensing",
+    grepl("construct", key)  ~ "Construction",
+    TRUE ~ as.character(x)
+  )
+}
+
+# ------------------------------------------------------------
 # THEME
 # ------------------------------------------------------------
 
@@ -157,10 +212,33 @@ theme_base <- theme_classic(base_size = BASE_SIZE) +
 # READ DATA
 # ============================================================
 
-kang_sample_32 <- readxl::read_excel(FILE_IN) %>%
+kang_sample_32 <- readxl::read_excel(FILE_IN)
+
+names(kang_sample_32) <- clean_names_local(names(kang_sample_32))
+
+required_cols <- c(
+  "phase",
+  "trl",
+  "vendor_target",
+  "baseline_median",
+  "accelerated_median"
+)
+
+missing_cols <- required_cols[!required_cols %in% names(kang_sample_32)]
+
+if (length(missing_cols) > 0) {
+  stop(
+    "Missing required columns in Extended Data Fig. 3 source workbook:\n",
+    paste(missing_cols, collapse = "\n"),
+    "\n\nAvailable columns are:\n",
+    paste(names(kang_sample_32), collapse = "\n")
+  )
+}
+
+kang_sample_32 <- kang_sample_32 %>%
   mutate(
-    Phase = trimws(as.character(Phase)),
-    TRL = as.numeric(TRL),
+    Phase = normalise_phase(phase),
+    TRL = as.numeric(trl),
     vendor_target = as.numeric(vendor_target),
     baseline_median = as.numeric(baseline_median),
     accelerated_median = as.numeric(accelerated_median)
@@ -561,5 +639,8 @@ ggsave(
   width = SAVE_W_IN,
   height = SAVE_H_IN,
   units = "in",
-  bg = "white"
+  bg = "white",
+  useDingbats = FALSE
 )
+
+final_plot
