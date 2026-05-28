@@ -10,11 +10,11 @@
 # projections are shown.
 #
 # Required input:
-# data/Extended_Data/edfig07_source_data_market_readiness.xlsx
+# edfig07_source_data_market_readiness.xlsx
 #
 # Outputs:
-# outputs/Extended_Data/Figure_07/edfig07_market_readiness.png
-# outputs/Extended_Data/Figure_07/edfig07_market_readiness.pdf
+# edfig07_market_readiness.png
+# edfig07_market_readiness.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -34,33 +34,19 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS — GITHUB RUN
+# PATHS
 # ------------------------------------------------------------
 
-FILE_IN <- file.path(
-  "data",
-  "Extended_Data",
-  "edfig07_source_data_market_readiness.xlsx"
-)
+FILE_IN <- "edfig07_source_data_market_readiness.xlsx"
 
 SHEET_A <- "kang_2026_trl"
 SHEET_B <- "NEA_market_readiness"
 
-OUT_DIR <- file.path(
-  "outputs",
-  "Extended_Data",
-  "Figure_07"
-)
+OUT_DIR <- "."
 
 if (!file.exists(FILE_IN)) {
   stop("Input file not found: ", FILE_IN)
 }
-
-dir.create(
-  OUT_DIR,
-  recursive = TRUE,
-  showWarnings = FALSE
-)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
@@ -70,6 +56,8 @@ SAVE_W_MM <- 180
 SAVE_H_MM <- 165
 SAVE_DPI  <- 600
 BASE_SIZE <- 7
+
+FILE_STUB <- "edfig07_market_readiness"
 
 # ------------------------------------------------------------
 # COLOURS
@@ -775,7 +763,7 @@ print(fig_combined)
 ggsave(
   filename = file.path(
     OUT_DIR,
-    "edfig07_market_readiness.png"
+    paste0(FILE_STUB, ".png")
   ),
   plot = fig_combined,
   width = SAVE_W_MM,
@@ -788,12 +776,13 @@ ggsave(
 ggsave(
   filename = file.path(
     OUT_DIR,
-    "edfig07_market_readiness.pdf"
+    paste0(FILE_STUB, ".pdf")
   ),
   plot = fig_combined,
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
+  device = grDevices::cairo_pdf,
   bg = "white"
 )
 
