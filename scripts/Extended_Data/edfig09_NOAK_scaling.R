@@ -12,11 +12,11 @@
 # corresponding Accelerated values.
 #
 # Required input:
-# data/Extended_Data/edfig09_source_data_NOAK_scaling.xlsx
+# edfig09_source_data_NOAK_scaling.xlsx
 #
 # Outputs:
-# outputs/Extended_Data/Figure_09/edfig09_noak_scaling.png
-# outputs/Extended_Data/Figure_09/edfig09_noak_scaling.pdf
+# edfig09_noak_scaling.png
+# edfig09_noak_scaling.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -36,30 +36,16 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS — GITHUB RUN
+# PATHS
 # ------------------------------------------------------------
 
-FILE <- file.path(
-  "data",
-  "Extended_Data",
-  "edfig09_source_data_NOAK_scaling.xlsx"
-)
+FILE <- "edfig09_source_data_NOAK_scaling.xlsx"
 
-OUT_DIR <- file.path(
-  "outputs",
-  "Extended_Data",
-  "Figure_09"
-)
+OUT_DIR <- "."
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
-
-dir.create(
-  OUT_DIR,
-  showWarnings = FALSE,
-  recursive = TRUE
-)
 
 # ============================================================
 # LOAD DATA
