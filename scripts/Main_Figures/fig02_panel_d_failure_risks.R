@@ -35,10 +35,38 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# OUTPUT PATHS
+# PROJECT PATHS
 # ------------------------------------------------------------
 
+find_repo_root <- function(markers = c(".git", file.path("data", "Main_Figures"))) {
+  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    marker_found <- any(file.exists(file.path(path, markers)))
+    
+    if (marker_found) {
+      return(path)
+    }
+    
+    parent <- dirname(path)
+    
+    if (identical(parent, path)) {
+      stop(
+        "Could not find repository root containing one of these markers:\n",
+        paste(markers, collapse = "\n"),
+        "\n\nCurrent working directory was: ",
+        getwd()
+      )
+    }
+    
+    path <- parent
+  }
+}
+
+REPO_ROOT <- find_repo_root()
+
 OUT_DIR <- file.path(
+  REPO_ROOT,
   "outputs",
   "Figure_02",
   "intermediate"
@@ -286,7 +314,9 @@ p_d_core <- ggplot(
     axis.ticks.x = element_line(colour = "grey35", linewidth = 0.3),
     axis.ticks.y = element_line(colour = "grey35", linewidth = 0.3),
     axis.ticks.length = unit(2.5, "pt"),
-    plot.margin = margin(t = 8, r = 8, b = 6, l = 8)
+    plot.margin = margin(t = 8, r = 8, b = 6, l = 8),
+    plot.background  = element_rect(fill = "white", colour = NA),
+    panel.background = element_rect(fill = "white", colour = NA)
   )
 
 # ============================================================
@@ -326,7 +356,8 @@ ggsave(
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
-  bg = "white"
+  bg = "white",
+  useDingbats = FALSE
 )
 
 saveRDS(
@@ -338,3 +369,5 @@ saveRDS(
   p_d_core,
   file = file.path(OUT_DIR, paste0(FILE_STUB, "_core.rds"))
 )
+
+p_d
