@@ -39,7 +39,34 @@ graphics.off()
 # PROJECT PATHS
 # ----------------------------
 
-DATA_DIR <- file.path("data", "Main_Figures")
+find_repo_root <- function(marker = file.path("data", "Main_Figures", "fig03_source_data_vendor_targets.xlsx")) {
+  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    candidate <- file.path(path, marker)
+    
+    if (file.exists(candidate)) {
+      return(path)
+    }
+    
+    parent <- dirname(path)
+    
+    if (identical(parent, path)) {
+      stop(
+        "Could not find repository root containing ",
+        marker,
+        "\nCurrent working directory was: ",
+        getwd()
+      )
+    }
+    
+    path <- parent
+  }
+}
+
+REPO_ROOT <- find_repo_root()
+
+DATA_DIR <- file.path(REPO_ROOT, "data", "Main_Figures")
 
 FILE <- file.path(
   DATA_DIR,
@@ -47,6 +74,7 @@ FILE <- file.path(
 )
 
 FIG3_ROOT <- file.path(
+  REPO_ROOT,
   "outputs",
   "Figure_03"
 )
@@ -148,11 +176,34 @@ df0 <- read_excel(FILE)
 
 names(df0) <- gsub("\\s+", "_", names(df0))
 
-ops_key <- clean_key(ops_names)
+required_cols <- c(
+  "SMR",
+  "Country",
+  "Phase",
+  "Scenario",
+  "CD_Start",
+  "BD_Start",
+  "DD_Start",
+  "Lic_Start",
+  "Con_Start",
+  "P10",
+  "P50",
+  "P90",
+  "vendor_target"
+)
 
-if (!"vendor_target" %in% names(df0)) {
-  stop("Column 'vendor_target' not found in the workbook.")
+missing_cols <- setdiff(required_cols, names(df0))
+
+if (length(missing_cols) > 0) {
+  stop(
+    "Missing required columns in Figure 3 source workbook:\n",
+    paste(missing_cols, collapse = "\n"),
+    "\n\nAvailable columns are:\n",
+    paste(names(df0), collapse = "\n")
+  )
 }
+
+ops_key <- clean_key(ops_names)
 
 df0 <- df0 %>%
   mutate(
