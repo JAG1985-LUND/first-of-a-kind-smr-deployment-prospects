@@ -10,11 +10,11 @@
 # modelled FOAK deployment timelines by current development phase.
 #
 # Required input:
-# data/Extended_Data/edfig04_source_data_ambition_gap.xlsx
+# edfig04_source_data_ambition_gap.xlsx
 #
 # Outputs:
-# outputs/Extended_Data/edfig04_ambition_gap.png
-# outputs/Extended_Data/edfig04_ambition_gap.pdf
+# edfig04_ambition_gap.png
+# edfig04_ambition_gap.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -33,29 +33,15 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS — GITHUB RUN
+# PATHS
 # ------------------------------------------------------------
 
-FILE_IN <- file.path(
-  "data",
-  "Extended_Data",
-  "edfig04_source_data_ambition_gap.xlsx"
-)
-
-OUT_DIR <- file.path(
-  "outputs",
-  "Extended_Data"
-)
+FILE_IN <- "edfig04_source_data_ambition_gap.xlsx"
+OUT_DIR <- "."
 
 if (!file.exists(FILE_IN)) {
   stop("Input file not found: ", FILE_IN)
 }
-
-dir.create(
-  OUT_DIR,
-  recursive = TRUE,
-  showWarnings = FALSE
-)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
