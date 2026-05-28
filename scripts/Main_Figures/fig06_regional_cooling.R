@@ -22,13 +22,13 @@
 # over time.
 #
 # Required input:
-# data/Main_Figures/fig06_source_data_regional_deployment_cooling_type.xlsx
+# fig06_source_data_regional_deployment_cooling_type.xlsx
 #   - sheet: regional_deployment
 #   - sheet: cooling_type
 #
 # Outputs:
-# outputs/Figure_06/fig06_regional_cooling.png
-# outputs/Figure_06/fig06_regional_cooling.pdf
+# fig06_regional_cooling.png
+# fig06_regional_cooling.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -48,46 +48,15 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PROJECT PATHS
+# PATHS
 # ------------------------------------------------------------
 
-find_repo_root <- function(marker = file.path("data", "Main_Figures", "fig06_source_data_regional_deployment_cooling_type.xlsx")) {
-  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
-  
-  repeat {
-    candidate <- file.path(path, marker)
-    
-    if (file.exists(candidate)) {
-      return(path)
-    }
-    
-    parent <- dirname(path)
-    
-    if (identical(parent, path)) {
-      stop(
-        "Could not find repository root containing ",
-        marker,
-        "\nCurrent working directory was: ",
-        getwd()
-      )
-    }
-    
-    path <- parent
-  }
-}
-
-REPO_ROOT <- find_repo_root()
-
-DATA_DIR <- file.path(REPO_ROOT, "data", "Main_Figures")
-OUT_DIR  <- file.path(REPO_ROOT, "outputs", "Figure_06")
-
-FILE <- file.path(DATA_DIR, "fig06_source_data_regional_deployment_cooling_type.xlsx")
+FILE <- "fig06_source_data_regional_deployment_cooling_type.xlsx"
+OUT_DIR <- "."
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
-
-dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 available_sheets <- readxl::excel_sheets(FILE)
 
