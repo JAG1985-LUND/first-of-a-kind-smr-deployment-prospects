@@ -12,14 +12,14 @@
 # whiskers showing P10-P90 intervals.
 #
 # Required input:
-# data/Main_Figures/fig02_source_data_foak_framework.xlsx
+# fig02_source_data_foak_framework.xlsx
 #   - sheet: project_progression
 #
 # Outputs:
-# outputs/Figure_02/intermediate/fig02_panel_b_project_progression.png
-# outputs/Figure_02/intermediate/fig02_panel_b_project_progression.pdf
-# outputs/Figure_02/intermediate/fig02_panel_b_project_progression.rds
-# outputs/Figure_02/intermediate/fig02_panel_b_project_progression_core.rds
+# fig02_panel_b_project_progression.png
+# fig02_panel_b_project_progression.pdf
+# fig02_panel_b_project_progression.rds
+# fig02_panel_b_project_progression_core.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -41,50 +41,15 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PROJECT PATHS
+# PATHS
 # ------------------------------------------------------------
 
-find_repo_root <- function(marker = file.path("data", "Main_Figures", "fig02_source_data_foak_framework.xlsx")) {
-  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
-  
-  repeat {
-    candidate <- file.path(path, marker)
-    
-    if (file.exists(candidate)) {
-      return(path)
-    }
-    
-    parent <- dirname(path)
-    
-    if (identical(parent, path)) {
-      stop(
-        "Could not find repository root containing ",
-        marker,
-        "\nCurrent working directory was: ",
-        getwd()
-      )
-    }
-    
-    path <- parent
-  }
-}
-
-REPO_ROOT <- find_repo_root()
-
-DATA_DIR <- file.path(REPO_ROOT, "data", "Main_Figures")
-OUT_DIR  <- file.path(REPO_ROOT, "outputs", "Figure_02", "intermediate")
-
-FILE <- file.path(DATA_DIR, "fig02_source_data_foak_framework.xlsx")
+FILE <- "fig02_source_data_foak_framework.xlsx"
+OUT_DIR <- "."
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
-
-dir.create(
-  OUT_DIR,
-  recursive = TRUE,
-  showWarnings = FALSE
-)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
