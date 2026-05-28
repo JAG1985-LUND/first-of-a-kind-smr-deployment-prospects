@@ -14,9 +14,9 @@
 # Panel b shows historical FOAK SMR deployment and projected cumulative FOAK
 # deployment for the full modelled pipeline, including currently active designs
 # and simulated post-2025 design additions. The black line shows historical FOAK
-# operation, while grey and green lines show Baseline and Accelerated median
-# projections with scenario-space ranges. Shaded bands indicate the
-# corresponding uncertainty ranges.
+# operation, the blue line shows vendor-announced targets, while grey and green
+# lines show Baseline and Accelerated median projections with scenario-space
+# ranges. Shaded bands indicate the corresponding uncertainty ranges.
 #
 # Required input:
 # data/Main_Figures/fig04_source_foak_deployment_2050.xlsx
@@ -51,22 +51,34 @@ graphics.off()
 # ------------------------------------------------------------
 
 DATA_DIR <- file.path("data", "Main_Figures")
+OUT_DIR  <- file.path("outputs", "Figure_04")
 
-FILE <- file.path(
-  DATA_DIR,
-  "fig04_source_foak_deployment_2050.xlsx"
-)
+FILE <- file.path(DATA_DIR, "fig04_source_foak_deployment_2050.xlsx")
 
-OUT_DIR <- file.path(
-  "outputs",
-  "Figure_04"
-)
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
 
-dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+available_sheets <- excel_sheets(FILE)
+
+required_sheets <- c(
+  "global_outlook",
+  "baseline_counterfactuals",
+  "accelerated_counterfactuals"
+)
+
+missing_sheets <- required_sheets[!required_sheets %in% available_sheets]
+
+if (length(missing_sheets) > 0) {
+  stop(
+    "Missing required sheet(s) in workbook:\n",
+    paste(missing_sheets, collapse = "\n"),
+    "\n\nAvailable sheets are:\n",
+    paste(available_sheets, collapse = "\n")
+  )
+}
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
@@ -122,10 +134,6 @@ col_bas_fill  <- "grey70"
 col_acc_line  <- "#228B22"
 col_acc_fill  <- "#90EE90"
 
-# ------------------------------------------------------------
-# STANDARDISED RIBBON ALPHAS
-# ------------------------------------------------------------
-
 ALPHA_BASE <- 0.50
 ALPHA_ACC  <- 0.40
 
@@ -164,8 +172,49 @@ hide_zero <- function(x) {
 get_first_col <- function(data, patterns, label) {
   hits <- names(data)[Reduce(`|`, lapply(patterns, function(p) str_detect(names(data), p)))]
   hits <- hits[!duplicated(hits)]
-  if (length(hits) == 0) stop(paste0("Could not find column for: ", label))
+  if (length(hits) == 0) {
+    stop(
+      "Could not find column for: ", label,
+      "\nAvailable columns are:\n",
+      paste(names(data), collapse = "\n")
+    )
+  }
   hits[1]
+}
+
+standardise_sheet <- function(sheet) {
+  df <- read_excel(FILE, sheet = sheet) %>%
+    select(where(~ !all(is.na(.x))))
+
+  names(df) <- clean_names_local(names(df))
+  df
+}
+
+read_counterfactual_sheet <- function(sheet, value_patterns) {
+  df <- standardise_sheet(sheet)
+
+  if (!"group" %in% names(df)) {
+    stop("No group column found in sheet: ", sheet)
+  }
+
+  if (!"scenario" %in% names(df)) {
+    stop("No scenario column found in sheet: ", sheet)
+  }
+
+  if (!"year" %in% names(df)) {
+    stop("No year column found in sheet: ", sheet)
+  }
+
+  value_col <- get_first_col(df, value_patterns, paste0(sheet, " median value"))
+
+  df %>%
+    mutate(
+      group = clean_names_local(as.character(group)),
+      scenario = clean_names_local(as.character(scenario)),
+      year = as.numeric(year),
+      value = as.numeric(.data[[value_col]])
+    ) %>%
+    select(year, group, scenario, value)
 }
 
 theme_locked <- theme_classic(base_size = BASE_SIZE) +
@@ -210,35 +259,13 @@ add_panel_decorations <- function(plot_obj, tag, title_text, title_x = 0.56, tit
     )
 }
 
-read_counterfactual_sheet <- function(sheet, value_patterns) {
-  df <- read_excel(FILE, sheet = sheet) %>%
-    select(where(~ !all(is.na(.x))))
-  
-  names(df) <- clean_names_local(names(df))
-  
-  if (!"group" %in% names(df)) stop(paste0("No group column found in sheet: ", sheet))
-  if (!"scenario" %in% names(df)) stop(paste0("No scenario column found in sheet: ", sheet))
-  if (!"year" %in% names(df)) stop(paste0("No year column found in sheet: ", sheet))
-  
-  value_col <- get_first_col(df, value_patterns, paste0(sheet, " median value"))
-  
-  df %>%
-    mutate(
-      group = clean_names_local(as.character(group)),
-      scenario = clean_names_local(as.character(scenario)),
-      year = as.numeric(year),
-      value = as.numeric(.data[[value_col]])
-    ) %>%
-    select(year, group, scenario, value)
-}
-
 # ============================================================
 # HISTORICAL OPERATION
 # ============================================================
 
 df_hist_source <- read_counterfactual_sheet(
   sheet = "baseline_counterfactuals",
-  value_patterns = c("median.*baseline", "baseline.*median")
+  value_patterns = c("median.*baseline", "baseline.*median", "^p50$", "p50", "median")
 ) %>%
   filter(group == "global", scenario == "reference")
 
@@ -255,12 +282,12 @@ historical_line <- df_hist_source %>%
 # PANEL A — VENDOR-ANNOUNCED FOAK OUTLOOK
 # ============================================================
 
-df0_a <- read_excel(FILE, sheet = "global_outlook")
+df0_a <- standardise_sheet("global_outlook")
 
-clean_names_a <- clean_names_local(names(df0_a))
-dup_acc_p50_a <- which(clean_names_a == "acc_p50_total")
-if (length(dup_acc_p50_a) >= 2) clean_names_a[dup_acc_p50_a[2]] <- "acc_p90_total"
-names(df0_a) <- clean_names_a
+dup_acc_p50_a <- which(names(df0_a) == "acc_p50_total")
+if (length(dup_acc_p50_a) >= 2) {
+  names(df0_a)[dup_acc_p50_a[2]] <- "acc_p90_total"
+}
 
 names(df0_a) <- sub("^bas_p10_total$", "bas_p10", names(df0_a))
 names(df0_a) <- sub("^bas_p50_total$", "bas_p50", names(df0_a))
@@ -275,6 +302,29 @@ names(df0_a) <- sub("^vendors_bas_p90_total$", "vendor_bas_p90", names(df0_a))
 names(df0_a) <- sub("^vendors_acc_p10_total$", "vendor_acc_p10", names(df0_a))
 names(df0_a) <- sub("^vendors_acc_p50_total$", "vendor_acc_p50", names(df0_a))
 names(df0_a) <- sub("^vendors_acc_p90_total$", "vendor_acc_p90", names(df0_a))
+
+required_cols_a <- c(
+  "year",
+  "category",
+  "vendor_rollout",
+  "vendor_bas_p10",
+  "vendor_bas_p50",
+  "vendor_bas_p90",
+  "vendor_acc_p10",
+  "vendor_acc_p50",
+  "vendor_acc_p90"
+)
+
+missing_cols_a <- required_cols_a[!required_cols_a %in% names(df0_a)]
+
+if (length(missing_cols_a) > 0) {
+  stop(
+    "Missing required columns in global_outlook:\n",
+    paste(missing_cols_a, collapse = "\n"),
+    "\n\nAvailable columns are:\n",
+    paste(names(df0_a), collapse = "\n")
+  )
+}
 
 df_vendor_a <- df0_a %>%
   transmute(
@@ -299,7 +349,7 @@ df_vendor_a <- df0_a %>%
   arrange(year)
 
 if (nrow(df_vendor_a) == 0) {
-  stop("No usable vendor data found in sheet 'global_outlook'.")
+  stop("No usable Global vendor data found in sheet 'global_outlook'.")
 }
 
 vendor_line_a <- df_vendor_a %>%
@@ -369,48 +419,28 @@ p_a_core <- ggplot() +
     colour = NA
   ) +
   geom_segment(
-    aes(
-      x = display_start_year,
-      xend = vendor_horizon,
-      y = vendor_target_h,
-      yend = vendor_target_h
-    ),
+    aes(x = display_start_year, xend = vendor_horizon, y = vendor_target_h, yend = vendor_target_h),
     colour = col_vendor_line,
     linewidth = LW_GUIDE,
     linetype = "22",
     lineend = "butt"
   ) +
   geom_segment(
-    aes(
-      x = vendor_horizon,
-      xend = vendor_horizon,
-      y = 0,
-      yend = vendor_target_h
-    ),
+    aes(x = vendor_horizon, xend = vendor_horizon, y = 0, yend = vendor_target_h),
     colour = col_vendor_line,
     linewidth = LW_GUIDE,
     linetype = "22",
     lineend = "butt"
   ) +
   geom_segment(
-    aes(
-      x = display_start_year,
-      xend = vendor_horizon,
-      y = vendor_bas_h,
-      yend = vendor_bas_h
-    ),
+    aes(x = display_start_year, xend = vendor_horizon, y = vendor_bas_h, yend = vendor_bas_h),
     colour = col_bas_line,
     linewidth = LW_GUIDE,
     linetype = "22",
     lineend = "butt"
   ) +
   geom_segment(
-    aes(
-      x = display_start_year,
-      xend = vendor_horizon,
-      y = vendor_acc_h,
-      yend = vendor_acc_h
-    ),
+    aes(x = display_start_year, xend = vendor_horizon, y = vendor_acc_h, yend = vendor_acc_h),
     colour = col_acc_line,
     linewidth = LW_GUIDE,
     linetype = "22",
@@ -502,7 +532,7 @@ p_a <- add_panel_decorations(
 
 df_base_b <- read_counterfactual_sheet(
   sheet = "baseline_counterfactuals",
-  value_patterns = c("median.*baseline", "baseline.*median")
+  value_patterns = c("median.*baseline", "baseline.*median", "^p50$", "p50", "median")
 ) %>%
   filter(group == "global") %>%
   mutate(scenario = factor(scenario, levels = scenario_levels))
@@ -523,7 +553,7 @@ base_bounds_b <- df_base_b %>%
 
 df_acc_b <- read_counterfactual_sheet(
   sheet = "accelerated_counterfactuals",
-  value_patterns = c("median.*accelerated", "accelerated.*median")
+  value_patterns = c("median.*accelerated", "accelerated.*median", "^p50$", "p50", "median")
 ) %>%
   filter(group == "global") %>%
   mutate(scenario = factor(scenario, levels = scenario_levels))
@@ -554,6 +584,8 @@ observed_bridge_b <- observed_line_b %>%
 observed_line_b <- bind_rows(observed_line_b, observed_bridge_b) %>%
   arrange(year)
 
+vendor_line_b <- vendor_line_a
+
 baseline_line_b <- base_ref_b %>%
   filter(year >= scenario_start_year)
 
@@ -577,6 +609,13 @@ p_b_core <- ggplot() +
     data = observed_line_b,
     aes(x = year, y = value, colour = label),
     linewidth = LW_HIST,
+    direction = "hv",
+    lineend = "round"
+  ) +
+  geom_step(
+    data = vendor_line_b,
+    aes(x = year, y = value, colour = label),
+    linewidth = LW_VENDOR,
     direction = "hv",
     lineend = "round"
   ) +
@@ -652,46 +691,26 @@ p_b <- add_panel_decorations(
 
 legend_plot <- ggplot() +
   geom_segment(
-    aes(
-      x = 0,
-      xend = 1,
-      y = 1,
-      yend = 1,
-      colour = factor("Historical operation", levels = legend_levels)
-    ),
+    aes(x = 0, xend = 1, y = 1, yend = 1,
+        colour = factor("Historical operation", levels = legend_levels)),
     linewidth = LW_HIST,
     lineend = "round"
   ) +
   geom_segment(
-    aes(
-      x = 0,
-      xend = 1,
-      y = 1,
-      yend = 1,
-      colour = factor("Vendor-announced targets", levels = legend_levels)
-    ),
+    aes(x = 0, xend = 1, y = 1, yend = 1,
+        colour = factor("Vendor-announced targets", levels = legend_levels)),
     linewidth = LW_VENDOR,
     lineend = "round"
   ) +
   geom_segment(
-    aes(
-      x = 0,
-      xend = 1,
-      y = 1,
-      yend = 1,
-      colour = factor("Baseline scenario", levels = legend_levels)
-    ),
+    aes(x = 0, xend = 1, y = 1, yend = 1,
+        colour = factor("Baseline scenario", levels = legend_levels)),
     linewidth = LW_BASE,
     lineend = "round"
   ) +
   geom_segment(
-    aes(
-      x = 0,
-      xend = 1,
-      y = 1,
-      yend = 1,
-      colour = factor("Accelerated scenario", levels = legend_levels)
-    ),
+    aes(x = 0, xend = 1, y = 1, yend = 1,
+        colour = factor("Accelerated scenario", levels = legend_levels)),
     linewidth = LW_ACC,
     lineend = "round"
   ) +
