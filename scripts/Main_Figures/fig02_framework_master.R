@@ -4,12 +4,10 @@
 # Rebuilds Figure 2: probabilistic framework for SMR project progression,
 # pipeline evolution and FOAK deployment.
 #
-# This GitHub rebuild script reads the panel-level RDS objects generated for
+# This Marta rebuild script reads the panel-level RDS objects generated for
 # panels a, b, c, d, and e-f, then assembles the final Figure 2.
 #
-# Required inputs in:
-# outputs/Figure_02/intermediate
-#
+# Required inputs:
 # Framework_panel_A_duration_distributions_centred.rds
 # fig02_panel_b_project_progression.rds
 # fig02_panel_c_design_additions.rds
@@ -31,48 +29,24 @@ rm(list = ls())
 graphics.off()
 
 # ============================================================
-# FIGURE 2 — MASTER A-F LOCAL REBUILD
+# FIGURE 2 — MASTER A-F MARTA REBUILD
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS — GITHUB RUN
+# PATHS
 # ------------------------------------------------------------
 
+OUT_DIR <- "."
 
-OUT_DIR <- file.path(
-  "outputs",
-  "Figure_02"
-)
+FILE_A <- "Framework_panel_A_duration_distributions_centred.rds"
 
-INT_DIR <- file.path(
-  OUT_DIR,
-  "intermediate"
-)
+FILE_B <- "fig02_panel_b_project_progression.rds"
 
-FILE_A <- file.path(
-  INT_DIR,
-  "Framework_panel_A_duration_distributions_centred.rds"
-)
+FILE_C <- "fig02_panel_c_design_additions.rds"
 
-FILE_B <- file.path(
-  INT_DIR,
-  "fig02_panel_b_project_progression.rds"
-)
+FILE_D <- "fig02_panel_d_failure_risks.rds"
 
-FILE_C <- file.path(
-  INT_DIR,
-  "fig02_panel_c_design_additions.rds"
-)
-
-FILE_D <- file.path(
-  INT_DIR,
-  "fig02_panel_d_failure_risks.rds"
-)
-
-FILE_EF <- file.path(
-  INT_DIR,
-  "fig02_panels_e_f_future_pipeline.rds"
-)
+FILE_EF <- "fig02_panels_e_f_future_pipeline.rds"
 
 required_files <- c(
   FILE_A,
@@ -92,12 +66,6 @@ if (length(missing_files) > 0) {
     )
   )
 }
-
-dir.create(
-  OUT_DIR,
-  recursive = TRUE,
-  showWarnings = FALSE
-)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
@@ -179,7 +147,13 @@ scenario_df <- data.frame(
 
 scenario_legend_plot <- ggplot(
   scenario_df,
-  aes(x = x, xend = xend, y = y, yend = yend, colour = lab)
+  aes(
+    x = x,
+    xend = xend,
+    y = y,
+    yend = yend,
+    colour = lab
+  )
 ) +
   geom_segment(linewidth = 1) +
   scale_colour_manual(
@@ -188,21 +162,33 @@ scenario_legend_plot <- ggplot(
       "Baseline" = col_baseline_line,
       "Accelerated" = col_accel_line
     ),
-    breaks = c("Baseline", "Accelerated")
+    breaks = c(
+      "Baseline",
+      "Accelerated"
+    )
   ) +
   guides(
     colour = guide_legend(
       nrow = 1,
       byrow = TRUE,
-      override.aes = list(linewidth = 1.2)
+      override.aes = list(
+        linewidth = 1.2
+      )
     )
   ) +
   theme_void(base_size = 7) +
   theme(
     legend.position = "bottom",
     legend.direction = "horizontal",
-    legend.title = element_text(size = 6.5, face = "plain", colour = "black"),
-    legend.text = element_text(size = 6, colour = "black"),
+    legend.title = element_text(
+      size = 6.5,
+      face = "plain",
+      colour = "black"
+    ),
+    legend.text = element_text(
+      size = 6,
+      colour = "black"
+    ),
     legend.key.width = unit(8, "mm"),
     legend.key.height = unit(3.5, "mm"),
     legend.spacing.x = unit(2, "mm"),
@@ -230,7 +216,10 @@ print(fig_final)
 # ------------------------------------------------------------
 
 ggsave(
-  filename = file.path(OUT_DIR, paste0(FILE_STUB, ".png")),
+  filename = file.path(
+    OUT_DIR,
+    paste0(FILE_STUB, ".png")
+  ),
   plot = fig_final,
   width = SAVE_W_MM,
   height = SAVE_H_MM,
@@ -241,7 +230,10 @@ ggsave(
 )
 
 ggsave(
-  filename = file.path(OUT_DIR, paste0(FILE_STUB, ".pdf")),
+  filename = file.path(
+    OUT_DIR,
+    paste0(FILE_STUB, ".pdf")
+  ),
   plot = fig_final,
   width = SAVE_W_MM,
   height = SAVE_H_MM,
@@ -252,5 +244,10 @@ ggsave(
 
 saveRDS(
   fig_final,
-  file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
+  file = file.path(
+    OUT_DIR,
+    paste0(FILE_STUB, ".rds")
+  )
 )
+
+fig_final
