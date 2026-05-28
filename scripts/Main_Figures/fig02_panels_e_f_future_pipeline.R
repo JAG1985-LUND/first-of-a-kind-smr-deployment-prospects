@@ -9,15 +9,15 @@
 # phase-specific project attrition. Phase colours are consistent across panels.
 #
 # Required input:
-# data/Main_Figures/fig02_source_data_foak_framework.xlsx
+# fig02_source_data_foak_framework.xlsx
 #   - sheet: future_pipeline
 #
 # Outputs:
-# outputs/Figure_02/intermediate/fig02_panels_e_f_future_pipeline.png
-# outputs/Figure_02/intermediate/fig02_panels_e_f_future_pipeline.pdf
-# outputs/Figure_02/intermediate/fig02_panels_e_f_future_pipeline.rds
-# outputs/Figure_02/intermediate/fig02_panel_e_future_pipeline_baseline.rds
-# outputs/Figure_02/intermediate/fig02_panel_f_future_pipeline_accelerated.rds
+# fig02_panels_e_f_future_pipeline.png
+# fig02_panels_e_f_future_pipeline.pdf
+# fig02_panels_e_f_future_pipeline.rds
+# fig02_panel_e_future_pipeline_baseline.rds
+# fig02_panel_f_future_pipeline_accelerated.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -37,50 +37,15 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PROJECT PATHS
+# PATHS
 # ------------------------------------------------------------
 
-find_repo_root <- function(marker = file.path("data", "Main_Figures", "fig02_source_data_foak_framework.xlsx")) {
-  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
-  
-  repeat {
-    candidate <- file.path(path, marker)
-    
-    if (file.exists(candidate)) {
-      return(path)
-    }
-    
-    parent <- dirname(path)
-    
-    if (identical(parent, path)) {
-      stop(
-        "Could not find repository root containing ",
-        marker,
-        "\nCurrent working directory was: ",
-        getwd()
-      )
-    }
-    
-    path <- parent
-  }
-}
-
-REPO_ROOT <- find_repo_root()
-
-DATA_DIR <- file.path(REPO_ROOT, "data", "Main_Figures")
-OUT_DIR  <- file.path(REPO_ROOT, "outputs", "Figure_02", "intermediate")
-
-FILE <- file.path(DATA_DIR, "fig02_source_data_foak_framework.xlsx")
+FILE <- "fig02_source_data_foak_framework.xlsx"
+OUT_DIR <- "."
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
-
-dir.create(
-  OUT_DIR,
-  recursive = TRUE,
-  showWarnings = FALSE
-)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
