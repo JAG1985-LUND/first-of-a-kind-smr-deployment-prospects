@@ -6,11 +6,11 @@
 # designs and stalled designs.
 #
 # Required input:
-# data/Extended_Data/edfig01_source_data_pre_post_fukushima_pipeline.xlsx
+# edfig01_source_data_pre_post_fukushima_pipeline.xlsx
 #
 # Outputs:
-# outputs/Extended_Data/Figure_01/edfig01_pre_post_fukushima_pipeline.png
-# outputs/Extended_Data/Figure_01/edfig01_pre_post_fukushima_pipeline.pdf
+# edfig01_pre_post_fukushima_pipeline.png
+# edfig01_pre_post_fukushima_pipeline.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -30,63 +30,15 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PROJECT PATHS
+# PATHS
 # ------------------------------------------------------------
 
-find_repo_root <- function(marker = file.path("data", "Extended_Data", "edfig01_source_data_pre_post_fukushima_pipeline.xlsx")) {
-  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
-  
-  repeat {
-    candidate <- file.path(path, marker)
-    
-    if (file.exists(candidate)) {
-      return(path)
-    }
-    
-    parent <- dirname(path)
-    
-    if (identical(parent, path)) {
-      stop(
-        "Could not find repository root containing ",
-        marker,
-        "\nCurrent working directory was: ",
-        getwd()
-      )
-    }
-    
-    path <- parent
-  }
-}
-
-REPO_ROOT <- find_repo_root()
-
-DATA_DIR <- file.path(
-  REPO_ROOT,
-  "data",
-  "Extended_Data"
-)
-
-FILE <- file.path(
-  DATA_DIR,
-  "edfig01_source_data_pre_post_fukushima_pipeline.xlsx"
-)
-
-OUT_DIR <- file.path(
-  REPO_ROOT,
-  "outputs",
-  "Extended_Data",
-  "Figure_01"
-)
+FILE <- "edfig01_source_data_pre_post_fukushima_pipeline.xlsx"
+OUT_DIR <- "."
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
-
-dir.create(
-  OUT_DIR,
-  showWarnings = FALSE,
-  recursive = TRUE
-)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
