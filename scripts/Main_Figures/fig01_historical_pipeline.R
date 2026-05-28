@@ -14,11 +14,11 @@
 # by reactor cooling type.
 #
 # Required input:
-# data/Main_Figures/fig01_source_data_historical_pipeline.xlsx
+# fig01_source_data_historical_pipeline.xlsx
 #
 # Outputs:
-# outputs/Figure_01/fig01_historical_pipeline.png
-# outputs/Figure_01/fig01_historical_pipeline.pdf
+# fig01_historical_pipeline.png
+# fig01_historical_pipeline.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -35,53 +35,15 @@ rm(list = ls())
 graphics.off()
 
 # ------------------------------------------------------------
-# PROJECT PATHS
+# PATHS
 # ------------------------------------------------------------
 
-find_repo_root <- function(marker = file.path("data", "Main_Figures", "fig01_source_data_historical_pipeline.xlsx")) {
-  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
-  
-  repeat {
-    candidate <- file.path(path, marker)
-    
-    if (file.exists(candidate)) {
-      return(path)
-    }
-    
-    parent <- dirname(path)
-    
-    if (identical(parent, path)) {
-      stop(
-        "Could not find repository root containing ",
-        marker,
-        "\nCurrent working directory was: ",
-        getwd()
-      )
-    }
-    
-    path <- parent
-  }
-}
-
-REPO_ROOT <- find_repo_root()
-
-DATA_DIR <- file.path(REPO_ROOT, "data", "Main_Figures")
-OUT      <- file.path(REPO_ROOT, "outputs", "Figure_01")
-
-FILE <- file.path(
-  DATA_DIR,
-  "fig01_source_data_historical_pipeline.xlsx"
-)
+FILE <- "fig01_source_data_historical_pipeline.xlsx"
+OUT  <- "."
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
-
-dir.create(
-  OUT,
-  showWarnings = FALSE,
-  recursive = TRUE
-)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
