@@ -48,30 +48,64 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS
+# PROJECT PATHS
 # ------------------------------------------------------------
 
-DATA_DIR <- file.path("data", "Main_Figures")
+find_repo_root <- function(marker = file.path("data", "Main_Figures", "fig05_source_data_oecd_cooling.xlsx")) {
+  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    candidate <- file.path(path, marker)
+    
+    if (file.exists(candidate)) {
+      return(path)
+    }
+    
+    parent <- dirname(path)
+    
+    if (identical(parent, path)) {
+      stop(
+        "Could not find repository root containing ",
+        marker,
+        "\nCurrent working directory was: ",
+        getwd()
+      )
+    }
+    
+    path <- parent
+  }
+}
 
-FILE <- file.path(
-  DATA_DIR,
-  "fig05_source_data_oecd_cooling.xlsx"
-)
+REPO_ROOT <- find_repo_root()
 
-OUT_DIR <- file.path(
-  "outputs",
-  "Figure_05"
-)
+DATA_DIR <- file.path(REPO_ROOT, "data", "Main_Figures")
+OUT_DIR  <- file.path(REPO_ROOT, "outputs", "Figure_05")
+
+FILE <- file.path(DATA_DIR, "fig05_source_data_oecd_cooling.xlsx")
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
 
-dir.create(
-  OUT_DIR,
-  recursive = TRUE,
-  showWarnings = FALSE
+dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
+
+available_sheets <- readxl::excel_sheets(FILE)
+
+required_sheets <- c(
+  "oecd_membership",
+  "cooling_type"
 )
+
+missing_sheets <- required_sheets[!required_sheets %in% available_sheets]
+
+if (length(missing_sheets) > 0) {
+  stop(
+    "Missing required sheet(s) in workbook:\n",
+    paste(missing_sheets, collapse = "\n"),
+    "\n\nAvailable sheets are:\n",
+    paste(available_sheets, collapse = "\n")
+  )
+}
 
 # ------------------------------------------------------------
 # TARGETED EXPORT NAME
@@ -200,6 +234,15 @@ read_disaggregated_sheet <- function(sheet, group_type = c("oecd", "cooling")) {
   
   names(raw) <- clean_names_local(names(raw))
   
+  if (ncol(raw) < 8) {
+    stop(
+      "Expected at least eight columns in sheet: ",
+      sheet,
+      "\nAvailable columns are:\n",
+      paste(names(raw), collapse = "\n")
+    )
+  }
+  
   if (!"year" %in% names(raw)) {
     names(raw)[1] <- "year"
   }
@@ -209,7 +252,12 @@ read_disaggregated_sheet <- function(sheet, group_type = c("oecd", "cooling")) {
   metric_cols <- names(raw)[3:ncol(raw)]
   
   if (length(metric_cols) < 6) {
-    stop(paste0("Expected at least six metric columns in sheet: ", sheet))
+    stop(
+      "Expected at least six metric columns in sheet: ",
+      sheet,
+      "\nAvailable columns are:\n",
+      paste(names(raw), collapse = "\n")
+    )
   }
   
   metric_cols <- metric_cols[1:6]
