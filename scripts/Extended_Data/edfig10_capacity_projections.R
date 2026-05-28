@@ -13,11 +13,11 @@
 # scenario are reported, a grey line denotes the mid-point.
 #
 # Required input:
-# data/Extended_Data/edfig10_source_data_capacity_projections.xlsx
+# edfig10_source_data_capacity_projections.xlsx
 #
 # Outputs:
-# outputs/Extended_Data/edfig10_capacity_projections.png
-# outputs/Extended_Data/edfig10_capacity_projections.pdf
+# edfig10_capacity_projections.png
+# edfig10_capacity_projections.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -38,29 +38,16 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS — GITHUB RUN
+# PATHS
 # ------------------------------------------------------------
 
-FILE <- file.path(
-  "data",
-  "Extended_Data",
-  "edfig10_source_data_capacity_projections.xlsx"
-)
+FILE <- "edfig10_source_data_capacity_projections.xlsx"
 
-OUT_DIR <- file.path(
-  "outputs",
-  "Extended_Data"
-)
+OUT_DIR <- "."
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
-
-dir.create(
-  OUT_DIR,
-  recursive = TRUE,
-  showWarnings = FALSE
-)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
@@ -109,7 +96,7 @@ clean_names_local <- function(x) {
 
 standardise_projection_sheet <- function(df, target_year) {
   names(df) <- clean_names_local(names(df))
-  
+
   if (target_year == 2035) {
     df %>%
       transmute(
@@ -151,11 +138,26 @@ add_panel_tag <- function(plot_obj, tag, tag_x = 0.015, tag_y = 0.985) {
 
 theme_shared <- theme_classic(base_size = BASE_SIZE) +
   theme(
-    axis.line.x = element_line(colour = "grey35", linewidth = 0.3),
-    axis.line.y = element_line(colour = "grey35", linewidth = 0.3),
-    axis.ticks = element_line(colour = "grey35", linewidth = 0.3),
-    axis.text = element_text(size = AXIS_TEXT_SIZE, colour = "black"),
-    axis.title = element_text(size = AXIS_TITLE_SIZE, colour = "black"),
+    axis.line.x = element_line(
+      colour = "grey35",
+      linewidth = 0.3
+    ),
+    axis.line.y = element_line(
+      colour = "grey35",
+      linewidth = 0.3
+    ),
+    axis.ticks = element_line(
+      colour = "grey35",
+      linewidth = 0.3
+    ),
+    axis.text = element_text(
+      size = AXIS_TEXT_SIZE,
+      colour = "black"
+    ),
+    axis.title = element_text(
+      size = AXIS_TITLE_SIZE,
+      colour = "black"
+    ),
     legend.position = "bottom",
     legend.direction = "horizontal",
     legend.title = element_text(size = LEGEND_TITLE_SIZE),
@@ -165,8 +167,14 @@ theme_shared <- theme_classic(base_size = BASE_SIZE) +
     legend.margin = margin(0, 0, 0, 0),
     legend.box.margin = margin(0, 0, 0, 0),
     plot.title = element_blank(),
-    plot.background = element_rect(fill = "white", colour = NA),
-    panel.background = element_rect(fill = "white", colour = NA)
+    plot.background = element_rect(
+      fill = "white",
+      colour = NA
+    ),
+    panel.background = element_rect(
+      fill = "white",
+      colour = NA
+    )
   )
 
 # ============================================================
