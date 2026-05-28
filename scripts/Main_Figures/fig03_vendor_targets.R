@@ -12,11 +12,11 @@
 # scenarios, respectively. The vertical dashed line marks 2050.
 #
 # Required input:
-# data/Main_Figures/fig03_source_data_vendor_targets.xlsx
+# fig03_source_data_vendor_targets.xlsx
 #
 # Outputs:
-# outputs/Figure_03/fig03_vendor_targets.png
-# outputs/Figure_03/fig03_vendor_targets.pdf
+# fig03_vendor_targets.png
+# fig03_vendor_targets.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -36,54 +36,15 @@ graphics.off()
 # ============================================================
 
 # ----------------------------
-# PROJECT PATHS
+# PATHS
 # ----------------------------
 
-find_repo_root <- function(marker = file.path("data", "Main_Figures", "fig03_source_data_vendor_targets.xlsx")) {
-  path <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
-  
-  repeat {
-    candidate <- file.path(path, marker)
-    
-    if (file.exists(candidate)) {
-      return(path)
-    }
-    
-    parent <- dirname(path)
-    
-    if (identical(parent, path)) {
-      stop(
-        "Could not find repository root containing ",
-        marker,
-        "\nCurrent working directory was: ",
-        getwd()
-      )
-    }
-    
-    path <- parent
-  }
-}
-
-REPO_ROOT <- find_repo_root()
-
-DATA_DIR <- file.path(REPO_ROOT, "data", "Main_Figures")
-
-FILE <- file.path(
-  DATA_DIR,
-  "fig03_source_data_vendor_targets.xlsx"
-)
-
-FIG3_ROOT <- file.path(
-  REPO_ROOT,
-  "outputs",
-  "Figure_03"
-)
+FILE <- "fig03_source_data_vendor_targets.xlsx"
+FIG3_ROOT <- "."
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
-
-dir.create(FIG3_ROOT, recursive = TRUE, showWarnings = FALSE)
 
 # ----------------------------
 # EXPORT SETTINGS
