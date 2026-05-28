@@ -11,11 +11,11 @@
 # vertical line marks 2035.
 #
 # Required input:
-# data/Extended_Data/edfig08_source_data_project_progression_2050.xlsx
+# edfig08_source_data_project_progression_2050.xlsx
 #
 # Outputs:
-# outputs/Extended_Data/Figure_08/edfig08_project_progression_2050.png
-# outputs/Extended_Data/Figure_08/edfig08_project_progression_2050.pdf
+# edfig08_project_progression_2050.png
+# edfig08_project_progression_2050.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -31,35 +31,21 @@ rm(list = ls())
 graphics.off()
 
 # ============================================================
-# EXTENDED DATA FIGURE 7
+# EXTENDED DATA FIGURE 8
 # PROJECT PROGRESSION TO 2050 BY OECD MEMBERSHIP
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS — GITHUB RUN
+# PATHS
 # ------------------------------------------------------------
 
-FILE <- file.path(
-  "data",
-  "Extended_Data",
-  "edfig08_source_data_project_progression_2050.xlsx"
-)
+FILE <- "edfig08_source_data_project_progression_2050.xlsx"
 
-OUT_DIR <- file.path(
-  "outputs",
-  "Extended_Data",
-  "Figure_08"
-)
+OUT_DIR <- "."
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
-
-dir.create(
-  OUT_DIR,
-  recursive = TRUE,
-  showWarnings = FALSE
-)
 
 # ------------------------------------------------------------
 # CONSTANTS
@@ -151,11 +137,11 @@ clean_key <- function(x) {
 
 first_non_na <- function(x) {
   x <- x[!is.na(x)]
-  
+
   if (length(x) == 0) {
     return(NA_real_)
   }
-  
+
   x[1]
 }
 
@@ -202,7 +188,7 @@ df0 <- df0 %>%
 # ------------------------------------------------------------
 
 make_panel <- function(df, fut_min, show_x) {
-  
+
   design_oper <- df %>%
     dplyr::group_by(design) %>%
     dplyr::summarise(
@@ -212,7 +198,7 @@ make_panel <- function(df, fut_min, show_x) {
       ),
       .groups = "drop"
     )
-  
+
   df_base <- df %>%
     dplyr::filter(Scenario == "Baseline") %>%
     dplyr::group_by(design) %>%
@@ -231,7 +217,7 @@ make_panel <- function(df, fut_min, show_x) {
       design_oper,
       by = "design"
     )
-  
+
   df_acc <- df %>%
     dplyr::filter(Scenario == "Accelerated") %>%
     dplyr::group_by(design) %>%
@@ -241,7 +227,7 @@ make_panel <- function(df, fut_min, show_x) {
       P90 = first_non_na(P90),
       .groups = "drop"
     )
-  
+
   y_levels <- df_base %>%
     dplyr::arrange(
       CD_Start,
@@ -250,7 +236,7 @@ make_panel <- function(df, fut_min, show_x) {
     ) %>%
     dplyr::pull(design) %>%
     rev()
-  
+
   df_base <- df_base %>%
     dplyr::mutate(
       design = factor(
@@ -258,7 +244,7 @@ make_panel <- function(df, fut_min, show_x) {
         levels = y_levels
       )
     )
-  
+
   df_acc <- df_acc %>%
     dplyr::mutate(
       design = factor(
@@ -266,7 +252,7 @@ make_panel <- function(df, fut_min, show_x) {
         levels = y_levels
       )
     )
-  
+
   df_long <- df_base %>%
     dplyr::select(
       design,
@@ -316,7 +302,7 @@ make_panel <- function(df, fut_min, show_x) {
         HIST_MIN
       )
     )
-  
+
   df_seg <- df_long %>%
     dplyr::mutate(
       end = ifelse(
@@ -335,7 +321,7 @@ make_panel <- function(df, fut_min, show_x) {
       )
     ) %>%
     dplyr::filter(end > start)
-  
+
   df_op <- df_base %>%
     dplyr::filter(is_operational) %>%
     dplyr::transmute(
@@ -361,7 +347,7 @@ make_panel <- function(df, fut_min, show_x) {
       )
     ) %>%
     dplyr::filter(end > start)
-  
+
   df_proj <- df_base %>%
     dplyr::filter(is_operational) %>%
     dplyr::transmute(
@@ -373,10 +359,10 @@ make_panel <- function(df, fut_min, show_x) {
         levels = names(PHASE_COLS)
       )
     )
-  
+
   df_base_nonop <- df_base %>%
     dplyr::filter(!is_operational)
-  
+
   df_acc_nonop <- df_acc %>%
     dplyr::left_join(
       dplyr::select(
@@ -387,7 +373,7 @@ make_panel <- function(df, fut_min, show_x) {
       by = "design"
     ) %>%
     dplyr::filter(!is_operational)
-  
+
   ggplot() +
     geom_segment(
       data = df_seg,
@@ -536,12 +522,12 @@ make_dev_block <- function(phases, y_step = 0.86) {
   n <- length(phases)
   ys <- rev(seq_len(n)) * y_step
   title_y <- max(ys) + 0.95
-  
+
   df_lines <- tibble(
     phase = phases,
     y = ys
   )
-  
+
   ggplot(df_lines) +
     annotate(
       "text",
@@ -598,16 +584,16 @@ make_scen_block <- function() {
     "Baseline FOAK median\n(P10–P90 interval)",
     "Accelerated FOAK median\n(P10–P90 interval)"
   )
-  
+
   df_scen <- tibble(
     label = labels,
     y = c(2.25, 0.95),
     col = c(COL_BASE, COL_ACC),
     pch = c(SH_BASE, SH_ACC)
   )
-  
+
   title_y <- 3.25
-  
+
   ggplot() +
     annotate(
       "text",
