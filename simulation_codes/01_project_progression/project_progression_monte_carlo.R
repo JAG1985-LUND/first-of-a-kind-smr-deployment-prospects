@@ -1,6 +1,6 @@
 # ============================================================
 # PROJECT PROGRESSION MONTE CARLO
-# FULL CLEAN SCRIPT — GITHUB VERSION
+# FULL CLEAN SCRIPT — GITHUB / SUBMISSION VERSION
 # LOGNORMAL EVERYWHERE
 #
 # Code for the manuscript:
@@ -10,17 +10,22 @@
 # Module:
 # 01_project_progression
 #
-# Input workbook:
-# data/Simulation_Inputs/project_progression_inputs.xlsx
+# Required input workbook:
+# project_progression_inputs.xlsx
 #
 # Required sheets:
 # 1) smr_design_inputs
 # 2) phase_rules
 #
-# Outputs:
-# outputs/Simulation_Outputs/01_project_progression/
+# Clean outputs:
+# 01_project_progression_outputs/project_progression_output_final/
 #
-# Main Excel output contains:
+# Files written:
+# 1) project_progression_output_final.xlsx
+# 2) project_progression_output_bundle_final.rds
+# 3) README.md
+#
+# Excel workbook contains:
 # 1) baseline_draws
 # 2) accelerated_draws
 # 3) summary_quantiles
@@ -42,64 +47,12 @@ graphics.off()
 
 # -------------------- PATHS --------------------
 
-find_repo_root <- function(start_dir = getwd()) {
-  current <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
-  
-  target <- file.path(
-    current,
-    "data",
-    "Simulation_Inputs",
-    "project_progression_inputs.xlsx"
-  )
-  
-  while (!file.exists(target)) {
-    parent <- dirname(current)
-    
-    if (identical(parent, current)) {
-      stop(
-        "Could not find repository root containing data/Simulation_Inputs/project_progression_inputs.xlsx",
-        call. = FALSE
-      )
-    }
-    
-    current <- parent
-    
-    target <- file.path(
-      current,
-      "data",
-      "Simulation_Inputs",
-      "project_progression_inputs.xlsx"
-    )
-  }
-  
-  current
-}
-
-REPO_ROOT <- find_repo_root()
-
-P_INPUTS <- file.path(
-  REPO_ROOT,
-  "data",
-  "Simulation_Inputs",
-  "project_progression_inputs.xlsx"
-)
+P_INPUTS <- "project_progression_inputs.xlsx"
 
 OUTDIR <- file.path(
-  REPO_ROOT,
-  "outputs",
-  "Simulation_Outputs",
-  "01_project_progression"
+  "01_project_progression_outputs",
+  "project_progression_output_final"
 )
-
-# -------------------- GLOBALS --------------------
-
-RUN_TYPE   <- "output"
-CUT_YEAR   <- 2025L
-NEXT_FLOOR <- 2026.0
-SIMS       <- 10000L
-SEED       <- 42
-
-set.seed(SEED)
 
 if (!file.exists(P_INPUTS)) {
   stop("Input workbook not found: ", P_INPUTS, call. = FALSE)
@@ -109,20 +62,17 @@ if (!dir.exists(OUTDIR)) {
   dir.create(OUTDIR, recursive = TRUE)
 }
 
-stamp <- format(Sys.time(), "%Y%m%d_%H%M")
+# -------------------- GLOBALS --------------------
 
-RUN_DIR <- file.path(
-  OUTDIR,
-  paste0("project_progression_", RUN_TYPE, "_", stamp)
-)
+RUN_TYPE   <- "final"
+CUT_YEAR   <- 2025L
+NEXT_FLOOR <- 2026.0
+SIMS       <- 10000L
+SEED       <- 42
 
-LATEST_DIR <- file.path(
-  OUTDIR,
-  paste0("project_progression_", RUN_TYPE, "_latest")
-)
+set.seed(SEED)
 
-dir.create(RUN_DIR, showWarnings = FALSE, recursive = TRUE)
-dir.create(LATEST_DIR, showWarnings = FALSE, recursive = TRUE)
+run_timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
 
 required_sheets <- c("smr_design_inputs", "phase_rules")
 available_sheets <- readxl::excel_sheets(P_INPUTS)
@@ -397,6 +347,12 @@ simulate_to_foak <- function(row, scenario) {
         design = row$design,
         scenario = scenario,
         status = "bad_phase",
+        cd_start = NA_real_,
+        bd_start = NA_real_,
+        dd_start = NA_real_,
+        licensing_start = NA_real_,
+        construction_start = NA_real_,
+        operational_start = NA_real_,
         foak_year = NA_real_
       )
     )
@@ -677,46 +633,47 @@ run_metadata <- tibble::tibble(
     "script_name",
     "module",
     "run_type",
-    "timestamp",
+    "run_timestamp",
     "seed",
     "sims",
     "cut_year",
     "next_floor",
-    "repository_root",
+    "working_directory",
     "input_workbook",
     "input_sheet_designs",
     "input_sheet_rules",
-    "run_directory",
-    "latest_directory"
+    "output_directory",
+    "excel_output",
+    "bundle_output",
+    "r_version",
+    "platform"
   ),
   value = c(
     "project_progression_monte_carlo.R",
     "01_project_progression",
     RUN_TYPE,
-    stamp,
+    run_timestamp,
     as.character(SEED),
     as.character(SIMS),
     as.character(CUT_YEAR),
     as.character(NEXT_FLOOR),
-    REPO_ROOT,
+    getwd(),
     P_INPUTS,
     "smr_design_inputs",
     "phase_rules",
-    RUN_DIR,
-    LATEST_DIR
+    OUTDIR,
+    file.path(OUTDIR, "project_progression_output_final.xlsx"),
+    file.path(OUTDIR, "project_progression_output_bundle_final.rds"),
+    paste(R.version$major, R.version$minor, sep = "."),
+    R.version$platform
   )
 )
 
-# -------------------- EXPORT EXCEL --------------------
+# -------------------- EXPORT CLEAN EXCEL OUTPUT --------------------
 
-xlsx_path_run <- file.path(
-  RUN_DIR,
-  paste0("project_progression_", RUN_TYPE, "_", stamp, ".xlsx")
-)
-
-xlsx_path_latest <- file.path(
-  LATEST_DIR,
-  paste0("project_progression_", RUN_TYPE, "_latest.xlsx")
+xlsx_path <- file.path(
+  OUTDIR,
+  "project_progression_output_final.xlsx"
 )
 
 xlsx_contents <- list(
@@ -727,80 +684,9 @@ xlsx_contents <- list(
   run_metadata         = run_metadata
 )
 
-writexl::write_xlsx(xlsx_contents, path = xlsx_path_run)
-writexl::write_xlsx(xlsx_contents, path = xlsx_path_latest)
+writexl::write_xlsx(xlsx_contents, path = xlsx_path)
 
-# -------------------- SAVE R OBJECTS --------------------
-
-saveRDS(
-  mc_baseline_project_progression,
-  file = file.path(RUN_DIR, paste0("mc_baseline_project_progression_", RUN_TYPE, "_", stamp, ".rds"))
-)
-
-saveRDS(
-  mc_accelerated_project_progression,
-  file = file.path(RUN_DIR, paste0("mc_accelerated_project_progression_", RUN_TYPE, "_", stamp, ".rds"))
-)
-
-saveRDS(
-  summary_quantiles,
-  file = file.path(RUN_DIR, paste0("summary_quantiles_project_progression_", RUN_TYPE, "_", stamp, ".rds"))
-)
-
-saveRDS(
-  summary_descriptives,
-  file = file.path(RUN_DIR, paste0("summary_descriptives_project_progression_", RUN_TYPE, "_", stamp, ".rds"))
-)
-
-saveRDS(
-  smr_master,
-  file = file.path(RUN_DIR, paste0("smr_master_project_progression_", RUN_TYPE, "_", stamp, ".rds"))
-)
-
-saveRDS(
-  phase_params,
-  file = file.path(RUN_DIR, paste0("phase_params_project_progression_", RUN_TYPE, "_", stamp, ".rds"))
-)
-
-saveRDS(
-  run_metadata,
-  file = file.path(RUN_DIR, paste0("run_metadata_project_progression_", RUN_TYPE, "_", stamp, ".rds"))
-)
-
-saveRDS(
-  mc_baseline_project_progression,
-  file = file.path(LATEST_DIR, paste0("mc_baseline_project_progression_", RUN_TYPE, "_latest.rds"))
-)
-
-saveRDS(
-  mc_accelerated_project_progression,
-  file = file.path(LATEST_DIR, paste0("mc_accelerated_project_progression_", RUN_TYPE, "_latest.rds"))
-)
-
-saveRDS(
-  summary_quantiles,
-  file = file.path(LATEST_DIR, paste0("summary_quantiles_project_progression_", RUN_TYPE, "_latest.rds"))
-)
-
-saveRDS(
-  summary_descriptives,
-  file = file.path(LATEST_DIR, paste0("summary_descriptives_project_progression_", RUN_TYPE, "_latest.rds"))
-)
-
-saveRDS(
-  smr_master,
-  file = file.path(LATEST_DIR, paste0("smr_master_project_progression_", RUN_TYPE, "_latest.rds"))
-)
-
-saveRDS(
-  phase_params,
-  file = file.path(LATEST_DIR, paste0("phase_params_project_progression_", RUN_TYPE, "_latest.rds"))
-)
-
-saveRDS(
-  run_metadata,
-  file = file.path(LATEST_DIR, paste0("run_metadata_project_progression_", RUN_TYPE, "_latest.rds"))
-)
+# -------------------- EXPORT CLEAN BUNDLE RDS --------------------
 
 model_bundle <- list(
   mc_baseline_project_progression = mc_baseline_project_progression,
@@ -816,63 +702,63 @@ model_bundle <- list(
   run_metadata = run_metadata
 )
 
-saveRDS(
-  model_bundle,
-  file = file.path(RUN_DIR, paste0("project_progression_", RUN_TYPE, "_bundle_", stamp, ".rds"))
+bundle_path <- file.path(
+  OUTDIR,
+  "project_progression_output_bundle_final.rds"
 )
 
-saveRDS(
-  model_bundle,
-  file = file.path(LATEST_DIR, paste0("project_progression_", RUN_TYPE, "_bundle_latest.rds"))
+saveRDS(model_bundle, file = bundle_path)
+
+# -------------------- README --------------------
+
+readme_path <- file.path(OUTDIR, "README.md")
+
+readme_lines <- c(
+  "# Project progression Monte Carlo outputs",
+  "",
+  "This folder contains the clean final outputs from the project progression module.",
+  "",
+  "## Files",
+  "",
+  "- `project_progression_output_final.xlsx`: human-readable Monte Carlo output workbook.",
+  "- `project_progression_output_bundle_final.rds`: compact R bundle containing raw draws, summaries, model inputs and run metadata.",
+  "",
+  "## Excel sheets",
+  "",
+  "- `baseline_draws`: design-level Monte Carlo draws under the Baseline scenario.",
+  "- `accelerated_draws`: design-level Monte Carlo draws under the Accelerated scenario.",
+  "- `summary_quantiles`: P10, P50 and P90 FOAK year by design and scenario.",
+  "- `summary_descriptives`: descriptive statistics for FOAK year by design and scenario.",
+  "- `run_metadata`: seed, simulation count, input workbook and run information.",
+  "",
+  "## Run settings",
+  "",
+  paste0("- Simulations per design: ", SIMS),
+  paste0("- Seed: ", SEED),
+  paste0("- Cut year: ", CUT_YEAR),
+  paste0("- Next phase floor: ", NEXT_FLOOR),
+  paste0("- Run timestamp: ", run_timestamp),
+  "",
+  "No timestamped duplicate folders, `latest` folders, individual RDS files or RData workspaces are produced by this clean version."
 )
 
-save(
-  mc_baseline_project_progression,
-  mc_accelerated_project_progression,
-  summary_quantiles,
-  summary_descriptives,
-  smr_specs,
-  phase_rules,
-  smr_master,
-  phase_params,
-  param_map,
-  design_list,
-  run_metadata,
-  file = file.path(RUN_DIR, paste0("project_progression_", RUN_TYPE, "_workspace_", stamp, ".RData"))
-)
-
-save(
-  mc_baseline_project_progression,
-  mc_accelerated_project_progression,
-  summary_quantiles,
-  summary_descriptives,
-  smr_specs,
-  phase_rules,
-  smr_master,
-  phase_params,
-  param_map,
-  design_list,
-  run_metadata,
-  file = file.path(LATEST_DIR, paste0("project_progression_", RUN_TYPE, "_workspace_latest.RData"))
-)
+writeLines(readme_lines, readme_path)
 
 # -------------------- CONSOLE OUTPUT --------------------
 
 cat("\n==================== PROJECT PROGRESSION COMPLETE ====================\n")
 cat("Module: 01_project_progression\n")
+cat("Run type:", RUN_TYPE, "\n")
 cat("Baseline rows:", nrow(mc_baseline_project_progression), "\n")
 cat("Accelerated rows:", nrow(mc_accelerated_project_progression), "\n")
 cat("Number of designs:", dplyr::n_distinct(smr_master$design), "\n")
 cat("Simulations per design:", SIMS, "\n")
-cat("Excel saved (run):\n", xlsx_path_run, "\n")
-cat("Excel saved (latest):\n", xlsx_path_latest, "\n")
-cat("Bundle RDS saved:\n", file.path(LATEST_DIR, paste0("project_progression_", RUN_TYPE, "_bundle_latest.rds")), "\n")
-cat("Workspace RData saved:\n", file.path(LATEST_DIR, paste0("project_progression_", RUN_TYPE, "_workspace_latest.RData")), "\n")
+cat("Output directory:\n", OUTDIR, "\n")
+cat("Excel saved:\n", xlsx_path, "\n")
+cat("Bundle RDS saved:\n", bundle_path, "\n")
+cat("README saved:\n", readme_path, "\n")
 cat("================================================================================\n\n")
 
-print(xlsx_path_run)
-print(xlsx_path_latest)
-print(file.path(LATEST_DIR, paste0("project_progression_", RUN_TYPE, "_bundle_latest.rds")))
-print(file.path(LATEST_DIR, paste0("project_progression_", RUN_TYPE, "_workspace_latest.RData")))
-
-
+print(xlsx_path)
+print(bundle_path)
+print(readme_path)
