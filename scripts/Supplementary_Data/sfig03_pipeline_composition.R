@@ -5,11 +5,11 @@
 # global SMR design pipeline at end-2025.
 #
 # Required input:
-# data/Supplementary_Data/sfig03_source_data_pipeline_composition.xlsx
+# sfig03_source_data_pipeline_composition.xlsx
 #
 # Outputs:
-# outputs/Supplementary_Data/sfig03_pipeline_composition.png
-# outputs/Supplementary_Data/sfig03_pipeline_composition.pdf
+# sfig03_pipeline_composition.png
+# sfig03_pipeline_composition.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -31,33 +31,16 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS — GITHUB RUN
+# PATHS
 # ------------------------------------------------------------
 
-DATA_DIR <- file.path(
-  "data",
-  "Supplementary_Data"
-)
+FILE <- "sfig03_source_data_pipeline_composition.xlsx"
 
-FILE <- file.path(
-  DATA_DIR,
-  "sfig03_source_data_pipeline_composition.xlsx"
-)
-
-OUT_DIR <- file.path(
-  "outputs",
-  "Supplementary_Data"
-)
+OUT_DIR <- "."
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
-
-dir.create(
-  OUT_DIR,
-  showWarnings = FALSE,
-  recursive = TRUE
-)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
@@ -580,3 +563,5 @@ ggsave(
   device = cairo_pdf,
   bg = "white"
 )
+
+fig
