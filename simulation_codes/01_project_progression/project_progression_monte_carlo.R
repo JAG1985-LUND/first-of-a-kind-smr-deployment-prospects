@@ -10,15 +10,18 @@
 # Module:
 # 01_project_progression
 #
-# Required input workbook:
+# GitHub input workbook:
+# data/Simulation_Inputs/project_progression_inputs.xlsx
+#
+# Local fallback input workbook:
 # project_progression_inputs.xlsx
 #
 # Required sheets:
 # 1) smr_design_inputs
 # 2) phase_rules
 #
-# Clean outputs:
-# 01_project_progression_outputs/project_progression_output_final/
+# GitHub clean outputs:
+# outputs/Simulation_Outputs/01_project_progression/project_progression_output_final/
 #
 # Files written:
 # 1) project_progression_output_final.xlsx
@@ -47,12 +50,138 @@ graphics.off()
 
 # -------------------- PATHS --------------------
 
-P_INPUTS <- "project_progression_inputs.xlsx"
+normalise_path <- function(x) {
+  gsub("\\\\", "/", normalizePath(x, winslash = "/", mustWork = FALSE))
+}
 
-OUTDIR <- file.path(
-  "01_project_progression_outputs",
-  "project_progression_output_final"
-)
+get_script_dir <- function() {
+  args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- grep("^--file=", args, value = TRUE)
+  
+  if (length(file_arg) > 0) {
+    script_path <- sub("^--file=", "", file_arg[[1]])
+    return(dirname(normalise_path(script_path)))
+  }
+  
+  if (requireNamespace("rstudioapi", quietly = TRUE)) {
+    ctx <- tryCatch(
+      rstudioapi::getActiveDocumentContext(),
+      error = function(e) NULL
+    )
+    
+    if (!is.null(ctx) && !is.null(ctx$path) && nzchar(ctx$path)) {
+      return(dirname(normalise_path(ctx$path)))
+    }
+  }
+  
+  normalise_path(getwd())
+}
+
+parent_dirs <- function(start_dir) {
+  dirs <- character()
+  d <- normalise_path(start_dir)
+  
+  repeat {
+    dirs <- c(dirs, d)
+    parent <- dirname(d)
+    
+    if (identical(parent, d)) break
+    
+    d <- parent
+  }
+  
+  unique(dirs)
+}
+
+find_repo_root <- function(start_dirs) {
+  start_dirs <- unique(start_dirs)
+  
+  for (start_dir in start_dirs) {
+    for (d in parent_dirs(start_dir)) {
+      candidate <- file.path(
+        d,
+        "data",
+        "Simulation_Inputs",
+        "project_progression_inputs.xlsx"
+      )
+      
+      if (file.exists(candidate)) {
+        return(d)
+      }
+    }
+  }
+  
+  NA_character_
+}
+
+SCRIPT_DIR <- get_script_dir()
+REPO_ROOT  <- find_repo_root(c(getwd(), SCRIPT_DIR))
+
+if (!is.na(REPO_ROOT)) {
+  PATH_MODE <- "github_repo_layout"
+  
+  P_INPUTS <- file.path(
+    REPO_ROOT,
+    "data",
+    "Simulation_Inputs",
+    "project_progression_inputs.xlsx"
+  )
+  
+  OUTDIR <- file.path(
+    REPO_ROOT,
+    "outputs",
+    "Simulation_Outputs",
+    "01_project_progression",
+    "project_progression_output_final"
+  )
+  
+} else if (file.exists(file.path(getwd(), "project_progression_inputs.xlsx"))) {
+  PATH_MODE <- "local_working_directory"
+  
+  P_INPUTS <- file.path(
+    getwd(),
+    "project_progression_inputs.xlsx"
+  )
+  
+  OUTDIR <- file.path(
+    getwd(),
+    "01_project_progression_outputs",
+    "project_progression_output_final"
+  )
+  
+} else if (file.exists(file.path(SCRIPT_DIR, "project_progression_inputs.xlsx"))) {
+  PATH_MODE <- "local_script_directory"
+  
+  P_INPUTS <- file.path(
+    SCRIPT_DIR,
+    "project_progression_inputs.xlsx"
+  )
+  
+  OUTDIR <- file.path(
+    SCRIPT_DIR,
+    "01_project_progression_outputs",
+    "project_progression_output_final"
+  )
+  
+} else {
+  stop(
+    paste0(
+      "Input workbook not found.\n\n",
+      "Expected either:\n",
+      "1) data/Simulation_Inputs/project_progression_inputs.xlsx inside the repository, or\n",
+      "2) project_progression_inputs.xlsx in the working directory, or\n",
+      "3) project_progression_inputs.xlsx next to this script.\n\n",
+      "Current working directory:\n",
+      getwd(), "\n\n",
+      "Detected script directory:\n",
+      SCRIPT_DIR
+    ),
+    call. = FALSE
+  )
+}
+
+P_INPUTS <- normalise_path(P_INPUTS)
+OUTDIR   <- normalise_path(OUTDIR)
 
 if (!file.exists(P_INPUTS)) {
   stop("Input workbook not found: ", P_INPUTS, call. = FALSE)
@@ -633,6 +762,9 @@ run_metadata <- tibble::tibble(
     "script_name",
     "module",
     "run_type",
+    "path_mode",
+    "repo_root",
+    "script_directory",
     "run_timestamp",
     "seed",
     "sims",
@@ -652,12 +784,15 @@ run_metadata <- tibble::tibble(
     "project_progression_monte_carlo.R",
     "01_project_progression",
     RUN_TYPE,
+    PATH_MODE,
+    ifelse(is.na(REPO_ROOT), NA_character_, REPO_ROOT),
+    SCRIPT_DIR,
     run_timestamp,
     as.character(SEED),
     as.character(SIMS),
     as.character(CUT_YEAR),
     as.character(NEXT_FLOOR),
-    getwd(),
+    normalise_path(getwd()),
     P_INPUTS,
     "smr_design_inputs",
     "phase_rules",
@@ -733,6 +868,9 @@ readme_lines <- c(
   "",
   "## Run settings",
   "",
+  paste0("- Path mode: ", PATH_MODE),
+  paste0("- Input workbook: `", P_INPUTS, "`"),
+  paste0("- Output directory: `", OUTDIR, "`"),
   paste0("- Simulations per design: ", SIMS),
   paste0("- Seed: ", SEED),
   paste0("- Cut year: ", CUT_YEAR),
@@ -747,6 +885,8 @@ writeLines(readme_lines, readme_path)
 cat("\n==================== PROJECT PROGRESSION COMPLETE ====================\n")
 cat("Module: 01_project_progression\n")
 cat("Run type:", RUN_TYPE, "\n")
+cat("Path mode:", PATH_MODE, "\n")
+cat("Input workbook:\n", P_INPUTS, "\n")
 cat("Baseline rows:", nrow(mc_baseline_project_progression), "\n")
 cat("Accelerated rows:", nrow(mc_accelerated_project_progression), "\n")
 cat("Number of designs:", dplyr::n_distinct(smr_master$design), "\n")
