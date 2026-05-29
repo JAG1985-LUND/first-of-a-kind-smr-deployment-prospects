@@ -5,11 +5,11 @@
 # Licensing- and construction-readiness across development phases
 #
 # Required input:
-# data/Supplementary_Data/sfig_source_data_licensing_construction_readiness.xlsx
+# sfig_source_data_licensing_construction_readiness.xlsx
 #
 # Outputs:
-# outputs/Supplementary_Data/sfig14_licensing_construction_readiness.png
-# outputs/Supplementary_Data/sfig14_licensing_construction_readiness.pdf
+# sfig14_readiness_across_phases_combined.png
+# sfig14_readiness_across_phases_combined.pdf
 
 rm(list = ls())
 graphics.off()
@@ -30,40 +30,35 @@ suppressPackageStartupMessages({
 # Shared compact legend below both panels
 # ============================================================
 
-DATA_DIR <- file.path(
-  "data",
-  "Supplementary_Data"
-)
+# ------------------------------------------------------------
+# PATHS
+# ------------------------------------------------------------
 
-FILE_IN <- file.path(
-  DATA_DIR,
-  "sfig_source_data_licensing_construction_readiness.xlsx"
-)
+FILE <- "sfig_source_data_licensing_construction_readiness.xlsx"
 
 SHEET_A <- "licensing_readiness"
 SHEET_B <- "construction_readiness"
 
-OUT_DIR <- file.path(
-  "outputs",
-  "Supplementary_Data"
-)
+OUT_DIR <- "."
 
 OUT_BASE <- "sfig14_readiness_across_phases_combined"
 
-if (!file.exists(FILE_IN)) {
-  stop("Input file not found: ", FILE_IN)
+if (!file.exists(FILE)) {
+  stop("Input file not found: ", FILE)
 }
 
-dir.create(
-  OUT_DIR,
-  recursive = TRUE,
-  showWarnings = FALSE
-)
+# ------------------------------------------------------------
+# EXPORT SETTINGS
+# ------------------------------------------------------------
 
 SAVE_W_MM <- 180
 SAVE_H_MM <- 185
 SAVE_DPI  <- 600
 BASE_SIZE <- 8
+
+# ------------------------------------------------------------
+# COLOURS AND ORDERS
+# ------------------------------------------------------------
 
 phase_cols <- c(
   "Conceptual design" = "#FDE0D2",
@@ -88,6 +83,10 @@ phase_order_b <- c(
   "Construction"
 )
 
+# ------------------------------------------------------------
+# HELPERS
+# ------------------------------------------------------------
+
 clean_names_local <- function(x) {
   x <- trimws(x)
   x <- gsub("[[:space:][:punct:]]+", "_", x)
@@ -99,8 +98,12 @@ clean_names_local <- function(x) {
 pick_col <- function(nms, patterns) {
   for (p in patterns) {
     hit <- grep(p, nms, ignore.case = TRUE, value = TRUE)
-    if (length(hit) > 0) return(hit[1])
+    
+    if (length(hit) > 0) {
+      return(hit[1])
+    }
   }
+  
   NA_character_
 }
 
@@ -145,7 +148,7 @@ theme_base <- theme_classic(base_size = BASE_SIZE) +
 
 prepare_sheet <- function(sheet_name, metric_patterns, phase_order) {
   
-  raw <- read_excel(FILE_IN, sheet = sheet_name, na = c("N/A", "NA", ""))
+  raw <- read_excel(FILE, sheet = sheet_name, na = c("N/A", "NA", ""))
   names(raw) <- clean_names_local(names(raw))
   
   phase_col  <- pick_col(names(raw), c("^cohort$", "^phase$"))
@@ -232,6 +235,10 @@ make_panel <- function(dat, y_label, panel_label) {
     )
 }
 
+# ============================================================
+# LOAD DATA
+# ============================================================
+
 df_a <- prepare_sheet(
   sheet_name = SHEET_A,
   metric_patterns = c("^licensing_readiness$", "^licensing$", "licensing_readiness"),
@@ -244,6 +251,10 @@ df_b <- prepare_sheet(
   phase_order = phase_order_b
 )
 
+# ============================================================
+# BUILD PANELS
+# ============================================================
+
 p_a <- make_panel(
   dat = df_a,
   y_label = "Licensing-readiness",
@@ -255,6 +266,10 @@ p_b <- make_panel(
   y_label = "Construction-readiness",
   panel_label = "b"
 )
+
+# ============================================================
+# SHARED LEGENDS
+# ============================================================
 
 legend_phase_plot <- ggplot(
   tibble(
@@ -346,6 +361,10 @@ legend_block <- plot_grid(
   rel_heights = c(1, 1)
 )
 
+# ============================================================
+# COMBINE
+# ============================================================
+
 panels_block <- plot_grid(
   p_a,
   p_b,
@@ -363,6 +382,10 @@ final_plot <- plot_grid(
 )
 
 print(final_plot)
+
+# ============================================================
+# SAVE SUPPLEMENTARY FIGURE 14
+# ============================================================
 
 ggsave(
   filename = file.path(OUT_DIR, paste0(OUT_BASE, ".png")),
