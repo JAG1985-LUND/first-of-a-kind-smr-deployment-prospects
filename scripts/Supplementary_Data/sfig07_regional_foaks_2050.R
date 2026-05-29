@@ -5,11 +5,11 @@
 # trajectories.
 #
 # Required input:
-# data/Supplementary_Data/sfig07_regional_foaks_2050.xlsx
+# sfig07_regional_foaks_2050.xlsx
 #
 # Outputs:
-# outputs/Supplementary_Data/sfig07_regional_foaks_2050.png
-# outputs/Supplementary_Data/sfig07_regional_foaks_2050.pdf
+# sfig07_regional_foaks_2050.png
+# sfig07_regional_foaks_2050.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -29,25 +29,12 @@ graphics.off()
 # ============================================================
 
 # ----------------------------
-# PATHS — GITHUB RUN
+# PATHS
 # ----------------------------
 
-DATA_DIR <- file.path(
-  "data",
-  "Supplementary_Data"
-)
+FILE <- "sfig07_regional_foaks_2050.xlsx"
 
-FILE <- file.path(
-  DATA_DIR,
-  "sfig07_regional_foaks_2050.xlsx"
-)
-
-OUT_DIR <- file.path(
-  "outputs",
-  "Supplementary_Data"
-)
-
-dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+OUT_DIR <- "."
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
@@ -299,7 +286,7 @@ fig_s07 <- plot_grid(
 print(fig_s07)
 
 # ----------------------------
-# SAVE
+# SAVE SUPPLEMENTARY FIGURE 7
 # ----------------------------
 
 ggsave(
