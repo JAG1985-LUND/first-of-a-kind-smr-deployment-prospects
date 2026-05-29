@@ -5,11 +5,11 @@
 # start year of the conceptual design phase.
 #
 # Required input:
-# data/Supplementary_Data/sfig10_source_data_cd_duration_regression.xlsx
+# sfig10_source_data_cd_duration_regression.xlsx
 #
 # Outputs:
-# outputs/Supplementary_Data/sfig10_cd_duration_regression.png
-# outputs/Supplementary_Data/sfig10_cd_duration_regression.pdf
+# sfig10_cd_duration_regression.png
+# sfig10_cd_duration_regression.pdf
 
 rm(list = ls())
 graphics.off()
@@ -28,35 +28,18 @@ suppressPackageStartupMessages({
 # ============================================================
 
 # --------------------------
-# PATHS — GITHUB RUN
+# PATHS
 # --------------------------
 
-DATA_DIR <- file.path(
-  "data",
-  "Supplementary_Data"
-)
+FILE <- "sfig10_source_data_cd_duration_regression.xlsx"
 
-FILE_IN <- file.path(
-  DATA_DIR,
-  "sfig10_source_data_cd_duration_regression.xlsx"
-)
-
-OUT_DIR <- file.path(
-  "outputs",
-  "Supplementary_Data"
-)
+OUT_DIR <- "."
 
 OUT_BASE <- "sfig10_cd_duration_regression"
 
-if (!file.exists(FILE_IN)) {
-  stop("Input file not found: ", FILE_IN)
+if (!file.exists(FILE)) {
+  stop("Input file not found: ", FILE)
 }
-
-dir.create(
-  OUT_DIR,
-  recursive = TRUE,
-  showWarnings = FALSE
-)
 
 # --------------------------
 # SETTINGS
@@ -114,7 +97,7 @@ pick_col <- function(nms, exact = character(), patterns = character(), exclude =
 # LOAD DATA
 # --------------------------
 
-raw <- read_excel(FILE_IN, sheet = 1)
+raw <- read_excel(FILE, sheet = 1)
 names(raw) <- clean_names_local(names(raw))
 
 cd_col <- pick_col(
