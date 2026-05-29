@@ -5,11 +5,11 @@
 # development across the SMR pipeline.
 #
 # Required input:
-# data/Supplementary_Data/sfig02_source_data_stalled_development.xlsx
+# sfig02_source_data_stalled_development.xlsx
 #
 # Outputs:
-# outputs/Supplementary_Data/sfig02_stalled_development.png
-# outputs/Supplementary_Data/sfig02_stalled_development.pdf
+# sfig02_stalled_development.png
+# sfig02_stalled_development.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -27,33 +27,16 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS — GITHUB RUN
+# PATHS
 # ------------------------------------------------------------
 
-DATA_DIR <- file.path(
-  "data",
-  "Supplementary_Data"
-)
+FILE <- "sfig02_source_data_stalled_development.xlsx"
 
-FILE <- file.path(
-  DATA_DIR,
-  "sfig02_source_data_stalled_development.xlsx"
-)
-
-OUT_DIR <- file.path(
-  "outputs",
-  "Supplementary_Data"
-)
+OUT_DIR <- "."
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
-
-dir.create(
-  OUT_DIR,
-  showWarnings = FALSE,
-  recursive = TRUE
-)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
@@ -442,3 +425,5 @@ ggsave(
   units = "mm",
   bg = "white"
 )
+
+p
