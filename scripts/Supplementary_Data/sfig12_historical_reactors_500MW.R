@@ -1,3 +1,19 @@
+# Code for the manuscript Gordon, J.A., Kazlou, T., Jewell, J. and Cherp, A.
+# First-of-a-Kind deployment prospects for small modular reactors
+#
+# Reproduces Supplementary Fig. 12:
+# Fitted distributions for SMR and historical construction durations.
+#
+# Panel a: SMR construction durations (n = 24)
+# Panel b: Historical construction durations for 30–500 MW reactors
+#
+# Required input:
+# sfig12_source_data_historical_reactors_500MW.xlsx
+#
+# Outputs:
+# sfig12_historical_reactors_500MW.png
+# sfig12_historical_reactors_500MW.pdf
+
 rm(list = ls())
 graphics.off()
 
@@ -12,65 +28,38 @@ suppressPackageStartupMessages({
 })
 
 # ============================================================
-# Code for the manuscript Gordon, J.A., Kazlou, T., Jewell, J.
-# and Cherp, A.
-# First-of-a-Kind deployment prospects for small modular reactors
-#
-# Reproduces Supplementary Fig. 12:
-# Fitted distributions for SMR and historical construction durations
-#
-# Panel a: SMR construction durations (n = 24)
-# Panel b: Historical construction durations for 30–500 MW reactors
+# SUPPLEMENTARY FIGURE 12
+# FITTED DISTRIBUTIONS FOR CONSTRUCTION DURATIONS
 # ============================================================
-
-# ------------------------------------------------------------
-# REPOSITORY ROOT
-# ------------------------------------------------------------
-find_repo_root <- function(start = getwd(), max_up = 6) {
-  cur <- normalizePath(start, winslash = "/", mustWork = FALSE)
-  
-  for (i in 0:max_up) {
-    if (dir.exists(file.path(cur, "data")) && dir.exists(file.path(cur, "outputs"))) {
-      return(cur)
-    }
-    parent <- dirname(cur)
-    if (identical(parent, cur)) break
-    cur <- parent
-  }
-  
-  stop("Could not locate repository root containing 'data' and 'outputs'.")
-}
-
-ROOT_DIR <- find_repo_root()
 
 # ------------------------------------------------------------
 # PATHS
 # ------------------------------------------------------------
-DATA_DIR <- file.path(ROOT_DIR, "data", "Supplementary_Data")
-OUT_DIR  <- file.path(ROOT_DIR, "outputs", "Supplementary_Data", "Supplementary_Fig_12")
 
-dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+FILE <- "sfig12_source_data_historical_reactors_500MW.xlsx"
 
-file_candidates <- list.files(
-  DATA_DIR,
-  pattern = "^sfig12_source_data_historical_reactors_500MW\\.xlsx$|^sfig12_source_data_historical_reactors_.*\\.xlsx$",
-  recursive = TRUE,
-  full.names = TRUE
-)
+OUT_DIR <- "."
 
-if (length(file_candidates) == 0) {
-  stop("No sfig12 historical-reactors source-data workbook found under data/Supplementary_Data.")
+if (!file.exists(FILE)) {
+  stop("Input file not found: ", FILE)
 }
 
-FILE_IN <- file_candidates[1]
 OUT_BASE <- "sfig12_historical_reactors_500MW"
 
-PNG_OUT <- file.path(OUT_DIR, paste0(OUT_BASE, ".png"))
-PDF_OUT <- file.path(OUT_DIR, paste0(OUT_BASE, ".pdf"))
+PNG_OUT <- file.path(
+  OUT_DIR,
+  paste0(OUT_BASE, ".png")
+)
+
+PDF_OUT <- file.path(
+  OUT_DIR,
+  paste0(OUT_BASE, ".pdf")
+)
 
 # ------------------------------------------------------------
 # SETTINGS
 # ------------------------------------------------------------
+
 SAVE_W_MM <- 180
 SAVE_H_MM <- 105
 SAVE_DPI  <- 600
@@ -79,6 +68,7 @@ BASE_SIZE <- 7
 # ------------------------------------------------------------
 # HELPERS
 # ------------------------------------------------------------
+
 clean_names_local <- function(x) {
   x <- trimws(x)
   x <- gsub("[[:space:][:punct:]]+", "_", x)
@@ -114,7 +104,12 @@ build_density_df <- function(years) {
     arrange(AIC)
   
   best_dist <- aic_tbl$Distribution[1]
-  x_grid <- seq(min(years), max(years), length.out = 1000)
+  
+  x_grid <- seq(
+    min(years),
+    max(years),
+    length.out = 1000
+  )
   
   dens_list <- list()
   
@@ -205,7 +200,10 @@ extract_numeric_vector <- function(df) {
   for (nm in candidate_names) {
     x <- suppressWarnings(as.numeric(df[[nm]]))
     x <- x[is.finite(x) & x > 0]
-    if (length(x) > 0) return(x)
+    
+    if (length(x) > 0) {
+      return(x)
+    }
   }
   
   NULL
@@ -215,18 +213,30 @@ read_panel_b_years <- function(file_in) {
   sheets <- excel_sheets(file_in)
   
   for (sh in sheets) {
-    dat <- read_excel(file_in, sheet = sh)
+    dat <- read_excel(
+      file_in,
+      sheet = sh
+    )
+    
     x <- extract_numeric_vector(dat)
+    
     if (!is.null(x) && length(x) >= 80) {
       return(x)
     }
   }
   
-  dat <- read_excel(file_in, sheet = 1)
+  dat <- read_excel(
+    file_in,
+    sheet = 1
+  )
+  
   x <- extract_numeric_vector(dat)
   
   if (is.null(x) || length(x) == 0) {
-    stop("Could not identify historical-construction durations in ", basename(file_in))
+    stop(
+      "Could not identify historical-construction durations in ",
+      basename(file_in)
+    )
   }
   
   x
@@ -258,8 +268,10 @@ tag_panel <- function(p, tag) {
   ggdraw(p) +
     draw_plot_label(
       label = tag,
-      x = 0.01, y = 0.99,
-      hjust = 0, vjust = 1,
+      x = 0.01,
+      y = 0.99,
+      hjust = 0,
+      vjust = 1,
       size = 11,
       fontface = "bold"
     )
@@ -268,7 +280,7 @@ tag_panel <- function(p, tag) {
 # ------------------------------------------------------------
 # PANEL A DATA
 # ------------------------------------------------------------
-# Source sample: SMR construction durations (n = 24)
+
 years_a <- c(
   3, 3.5, 4, 4, 4, 4, 4, 4, 4.5, 4.6,
   5, 5, 5, 5, 5, 5, 5.5, 5.5, 5.5, 6, 6, 6, 6, 9
@@ -280,18 +292,21 @@ years_a <- years_a[is.finite(years_a) & years_a > 0]
 # ------------------------------------------------------------
 # PANEL B DATA
 # ------------------------------------------------------------
-years_b <- read_panel_b_years(FILE_IN)
+
+years_b <- read_panel_b_years(FILE)
 years_b <- years_b[is.finite(years_b) & years_b > 0]
 
 # ------------------------------------------------------------
 # DENSITIES
 # ------------------------------------------------------------
+
 dens_a <- build_density_df(years_a)
 dens_b <- build_density_df(years_b)
 
 # ------------------------------------------------------------
 # PANEL A
 # ------------------------------------------------------------
+
 p_a_core <- ggplot() +
   geom_histogram(
     data = tibble(years = years_a),
@@ -335,6 +350,7 @@ p_a_core <- ggplot() +
 # ------------------------------------------------------------
 # PANEL B
 # ------------------------------------------------------------
+
 p_b_core <- ggplot() +
   geom_histogram(
     data = tibble(years = years_b),
@@ -371,6 +387,7 @@ p_b_core <- ggplot() +
 # ------------------------------------------------------------
 # SHARED LEGEND
 # ------------------------------------------------------------
+
 legend_plot <- ggplot() +
   geom_line(
     data = dens_b,
@@ -406,6 +423,7 @@ shared_legend <- get_legend(legend_plot)
 # ------------------------------------------------------------
 # COMBINE
 # ------------------------------------------------------------
+
 panels_ab <- plot_grid(
   tag_panel(p_a_core, "a"),
   tag_panel(p_b_core, "b"),
@@ -425,8 +443,9 @@ final_plot <- plot_grid(
 print(final_plot)
 
 # ------------------------------------------------------------
-# SAVE
+# SAVE SUPPLEMENTARY FIGURE 12
 # ------------------------------------------------------------
+
 ggsave(
   filename = PNG_OUT,
   plot = final_plot,
@@ -446,3 +465,5 @@ ggsave(
   device = cairo_pdf,
   bg = "white"
 )
+
+final_plot
