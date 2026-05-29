@@ -109,6 +109,8 @@ phase_order <- c(
   "Operational"
 )
 
+phase_legend_order <- rev(phase_order)
+
 phase_cols <- c(
   "Conceptual design" = "#FDE0D2",
   "Basic design"      = "#F4A582",
@@ -119,7 +121,7 @@ phase_cols <- c(
 )
 
 phase_legend_override <- list(
-  fill = unname(phase_cols[phase_order])
+  fill = unname(phase_cols[phase_legend_order])
 )
 
 # ------------------------------------------------------------
@@ -133,11 +135,17 @@ cool_order <- c(
   "Gas-cooled"
 )
 
+cool_legend_order <- rev(cool_order)
+
 cooling_palette <- c(
   "Water-cooled" = "#1f77b4",
   "Metal-cooled" = "#A9A9A9",
   "Salt-cooled"  = "#1b9e77",
   "Gas-cooled"   = "#d62728"
+)
+
+cooling_legend_override <- list(
+  fill = unname(cooling_palette[cool_legend_order])
 )
 
 # ------------------------------------------------------------
@@ -428,7 +436,7 @@ p_a <- ggplot(counts_oecd_panel, aes(Year, n_designs, fill = Phase)) +
   geom_col(width = 0.8, position = position_stack(reverse = TRUE), show.legend = TRUE) +
   scale_fill_manual(
     values = phase_cols,
-    breaks = phase_order,
+    breaks = phase_legend_order,
     limits = phase_order,
     drop = FALSE,
     name = "Phase"
@@ -447,7 +455,7 @@ p_a <- ggplot(counts_oecd_panel, aes(Year, n_designs, fill = Phase)) +
   labs(
     x = "Year",
     y = "Number of SMR designs",
-    title = "OECD SMR pipeline"
+    title = "OECD SMR design pipeline"
   ) +
   base_theme() +
   theme(
@@ -470,7 +478,7 @@ p_b <- ggplot(counts_nonoecd_panel, aes(Year, n_designs, fill = Phase)) +
   geom_col(width = 0.8, position = position_stack(reverse = TRUE), show.legend = FALSE) +
   scale_fill_manual(
     values = phase_cols,
-    breaks = phase_order,
+    breaks = phase_legend_order,
     limits = phase_order,
     drop = FALSE,
     name = "Phase"
@@ -488,7 +496,7 @@ p_b <- ggplot(counts_nonoecd_panel, aes(Year, n_designs, fill = Phase)) +
   labs(
     x = "Year",
     y = "Number of SMR designs",
-    title = "Non-OECD SMR pipeline"
+    title = "Non-OECD SMR design pipeline"
   ) +
   base_theme() +
   theme(
@@ -516,7 +524,7 @@ p_c <- ggplot(counts_region, aes(Region, n_designs, fill = Phase)) +
   geom_col(width = 0.7, position = position_stack(reverse = TRUE), show.legend = FALSE) +
   scale_fill_manual(
     values = phase_cols,
-    breaks = phase_order,
+    breaks = phase_legend_order,
     limits = phase_order,
     drop = FALSE,
     name = "Phase"
@@ -529,7 +537,7 @@ p_c <- ggplot(counts_region, aes(Region, n_designs, fill = Phase)) +
   labs(
     x = "Region",
     y = "Number of SMR designs",
-    title = " "
+    title = "Regional pipeline composition"
   ) +
   base_theme() +
   theme(
@@ -561,9 +569,12 @@ p_d <- ggplot(counts_region_type, aes(Region, n_designs, fill = Design)) +
   geom_col(width = 0.7, position = position_stack(reverse = TRUE)) +
   scale_fill_manual(
     values = cooling_palette,
-    breaks = cool_order,
+    breaks = cool_legend_order,
+    limits = cool_order,
+    drop = FALSE,
     name = "Cooling type"
   ) +
+  guides(fill = guide_legend(override.aes = cooling_legend_override)) +
   scale_y_continuous(
     limits = c(0, 20),
     breaks = c(5, 10, 15, 20),
@@ -572,13 +583,13 @@ p_d <- ggplot(counts_region_type, aes(Region, n_designs, fill = Design)) +
   labs(
     x = "Region",
     y = "Number of SMR designs",
-    title = " "
+    title = "Regional cooling-type composition"
   ) +
   base_theme() +
   theme(
     axis.text.x = element_text(size = AXIS_TEXT_SIZE, angle = 30, hjust = 1, colour = "grey20"),
     axis.title.x = element_text(size = AXIS_TITLE_SIZE, colour = "black", margin = margin(t = 4)),
-    legend.position = c(1, 1.00),
+    legend.position = c(1, 0.95),
     legend.justification = c(1, 1)
   )
 
