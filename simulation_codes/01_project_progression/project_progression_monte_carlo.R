@@ -737,9 +737,7 @@ readme_lines <- c(
   paste0("- Seed: ", SEED),
   paste0("- Cut year: ", CUT_YEAR),
   paste0("- Next phase floor: ", NEXT_FLOOR),
-  paste0("- Run timestamp: ", run_timestamp),
-  "",
-  "No timestamped duplicate folders, `latest` folders, individual RDS files or RData workspaces are produced by this clean version."
+  paste0("- Run timestamp: ", run_timestamp)
 )
 
 writeLines(readme_lines, readme_path)
