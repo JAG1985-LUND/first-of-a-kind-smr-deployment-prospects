@@ -5,11 +5,11 @@
 # of design-phase failure probabilities under Baseline and Accelerated scenarios.
 #
 # Required input:
-# data/Supplementary_Data/sfig13_design_phase_jeffreys.xlsx
+# sfig13_design_phase_jeffreys.xlsx
 #
 # Outputs:
-# outputs/Supplementary_Data/sfig13_cd_bd_dd_jeffreys.png
-# outputs/Supplementary_Data/sfig13_cd_bd_dd_jeffreys.pdf
+# sfig13_cd_bd_dd_jeffreys.png
+# sfig13_cd_bd_dd_jeffreys.pdf
 
 rm(list = ls())
 graphics.off()
@@ -31,35 +31,18 @@ suppressPackageStartupMessages({
 # ============================================================
 
 # ------------------------
-# PATHS — GITHUB RUN
+# PATHS
 # ------------------------
 
-DATA_DIR <- file.path(
-  "data",
-  "Supplementary_Data"
-)
+FILE <- "sfig13_design_phase_jeffreys.xlsx"
 
-FILE_IN <- file.path(
-  DATA_DIR,
-  "sfig13_design_phase_jeffreys.xlsx"
-)
-
-OUT_DIR <- file.path(
-  "outputs",
-  "Supplementary_Data"
-)
+OUT_DIR <- "."
 
 OUT_BASE <- "sfig13_cd_bd_dd_jeffreys"
 
-if (!file.exists(FILE_IN)) {
-  stop("Input file not found: ", FILE_IN)
+if (!file.exists(FILE)) {
+  stop("Input file not found: ", FILE)
 }
-
-dir.create(
-  OUT_DIR,
-  recursive = TRUE,
-  showWarnings = FALSE
-)
 
 # ------------------------
 # SETTINGS
@@ -93,7 +76,7 @@ clean_names_local <- function(x) {
 # READ SOURCE DATA
 # ------------------------
 
-df_counts <- read_excel(FILE_IN, sheet = 1)
+df_counts <- read_excel(FILE, sheet = 1)
 names(df_counts) <- clean_names_local(names(df_counts))
 
 required_cols <- c(
@@ -276,7 +259,7 @@ fig_combined <- plot_grid(
 print(fig_combined)
 
 # ------------------------
-# SAVE
+# SAVE SUPPLEMENTARY FIGURE 13
 # ------------------------
 
 ggsave(
