@@ -6,11 +6,11 @@
 # non-OECD SMR designs.
 #
 # Required input:
-# data/Supplementary_Data/sfig08_development_duration_trl.xlsx
+# sfig08_development_duration_trl.xlsx
 #
 # Outputs:
-# outputs/Supplementary_Data/sfig08_development_duration_trl.png
-# outputs/Supplementary_Data/sfig08_development_duration_trl.pdf
+# sfig08_development_duration_trl.png
+# sfig08_development_duration_trl.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -34,33 +34,16 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS — GITHUB RUN
+# PATHS
 # ------------------------------------------------------------
 
-DATA_DIR <- file.path(
-  "data",
-  "Supplementary_Data"
-)
+FILE <- "sfig08_development_duration_trl.xlsx"
 
-FILE_IN <- file.path(
-  DATA_DIR,
-  "sfig08_development_duration_trl.xlsx"
-)
+OUT_DIR <- "."
 
-OUT_DIR <- file.path(
-  "outputs",
-  "Supplementary_Data"
-)
-
-if (!file.exists(FILE_IN)) {
-  stop("Input file not found: ", FILE_IN)
+if (!file.exists(FILE)) {
+  stop("Input file not found: ", FILE)
 }
-
-dir.create(
-  OUT_DIR,
-  showWarnings = FALSE,
-  recursive = TRUE
-)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
@@ -144,7 +127,7 @@ theme_base <- theme_classic(base_size = BASE_SIZE) +
 # ============================================================
 
 raw <- read_excel(
-  FILE_IN,
+  FILE,
   sheet = 1
 )
 
@@ -186,7 +169,7 @@ oecd_col <- pick_col(
 if (any(is.na(c(phase_col, trl_col, dur_col, oecd_col)))) {
   stop(
     "Required columns were not found in ",
-    FILE_IN,
+    FILE,
     "\nAvailable columns are: ",
     paste(names(raw), collapse = ", ")
   )
