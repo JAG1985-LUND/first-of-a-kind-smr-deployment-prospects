@@ -5,11 +5,11 @@
 # for the active design cohort.
 #
 # Required input:
-# data/Supplementary_Data/sfig09_amr_accelerated_counterfactual.xlsx
+# sfig09_amr_accelerated_counterfactual.xlsx
 #
 # Outputs:
-# outputs/Supplementary_Data/sfig09_amr_accelerated_counterfactual.png
-# outputs/Supplementary_Data/sfig09_amr_accelerated_counterfactual.pdf
+# sfig09_amr_accelerated_counterfactual.png
+# sfig09_amr_accelerated_counterfactual.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -31,33 +31,16 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS — GITHUB RUN
+# PATHS
 # ------------------------------------------------------------
 
-DATA_DIR <- file.path(
-  "data",
-  "Supplementary_Data"
-)
+FILE <- "sfig09_amr_accelerated_counterfactual.xlsx"
 
-FILE_IN <- file.path(
-  DATA_DIR,
-  "sfig09_amr_accelerated_counterfactual.xlsx"
-)
+OUT_DIR <- "."
 
-OUT_DIR <- file.path(
-  "outputs",
-  "Supplementary_Data"
-)
-
-if (!file.exists(FILE_IN)) {
-  stop("Input file not found: ", FILE_IN)
+if (!file.exists(FILE)) {
+  stop("Input file not found: ", FILE)
 }
-
-dir.create(
-  OUT_DIR,
-  showWarnings = FALSE,
-  recursive = TRUE
-)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
@@ -112,7 +95,7 @@ base_theme <- theme_minimal(base_size = BASE_SIZE) +
 # LOAD AND STANDARDISE DATA
 # ============================================================
 
-df <- read_excel(FILE_IN, sheet = 1) %>%
+df <- read_excel(FILE, sheet = 1) %>%
   transmute(
     year = as.numeric(year),
     group = case_when(
