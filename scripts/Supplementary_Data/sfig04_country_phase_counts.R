@@ -5,11 +5,11 @@
 # and development phase.
 #
 # Required input:
-# data/Supplementary_Data/sfig04__source_data_country_phase_counts.xlsx
+# sfig04__source_data_country_phase_counts.xlsx
 #
 # Outputs:
-# outputs/Supplementary_Data/sfig04_country_phase_counts.png
-# outputs/Supplementary_Data/sfig04_country_phase_counts.pdf
+# sfig04_country_phase_counts.png
+# sfig04_country_phase_counts.pdf
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -27,33 +27,16 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS — GITHUB RUN
+# PATHS
 # ------------------------------------------------------------
 
-DATA_DIR <- file.path(
-  "data",
-  "Supplementary_Data"
-)
+FILE <- "sfig04__source_data_country_phase_counts.xlsx"
 
-FILE <- file.path(
-  DATA_DIR,
-  "sfig04__source_data_country_phase_counts.xlsx"
-)
-
-OUT_DIR <- file.path(
-  "outputs",
-  "Supplementary_Data"
-)
+OUT_DIR <- "."
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
-
-dir.create(
-  OUT_DIR,
-  showWarnings = FALSE,
-  recursive = TRUE
-)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
@@ -199,3 +182,5 @@ ggsave(
   device = cairo_pdf,
   bg = "white"
 )
+
+p
