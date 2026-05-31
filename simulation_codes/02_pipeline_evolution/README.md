@@ -8,7 +8,7 @@ This folder contains the pipeline-evolution Monte Carlo module used to simulate 
 
 ## Input
 
-- `data/Simulation_Inputs/pipeline_evolution_module.xlsx`
+- `data/Simulation_Inputs/pipeline_evolution_module_inputs.xlsx`
 
 ## Output
 
