@@ -191,6 +191,22 @@ if (!dir.exists(OUTDIR)) {
   dir.create(OUTDIR, recursive = TRUE)
 }
 
+# -------------------- USER RUN NOTE --------------------
+#
+# The final submission run uses 10,000 Monte Carlo simulations per design:
+#
+#   SIMS <- 10000L
+#
+# For quick local testing, debugging, or checking that the script runs correctly,
+# users may temporarily reduce this to:
+#
+#   SIMS <- 25L
+#
+# The value should be restored to SIMS <- 10000L before reproducing the final
+# manuscript outputs.
+#
+# -------------------------------------------------------
+
 # -------------------- GLOBALS --------------------
 
 RUN_TYPE   <- "final"
