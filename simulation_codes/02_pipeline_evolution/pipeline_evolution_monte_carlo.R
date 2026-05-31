@@ -1,6 +1,6 @@
 # ============================================================
 # PIPELINE EVOLUTION MONTE CARLO
-# GITHUB / SUBMISSION MC25 TEST VERSION
+# FULL CLEAN SCRIPT — GITHUB / SUBMISSION VERSION
 # FAIL-GATED • LOGNORMAL EVERYWHERE
 #
 # Code for the manuscript:
@@ -19,17 +19,22 @@
 # 3) design_phase_failures
 # 4) failure_rates_smrs
 #
-# GitHub test output folder:
-# outputs/Simulation_Outputs/02_pipeline_evolution/pipeline_evolution_MC25_test_outputs/
+# GitHub clean outputs:
+# outputs/Simulation_Outputs/02_pipeline_evolution/pipeline_evolution_output_final/
 #
 # Files written:
-# 1) pipeline_evolution_MC25_test.xlsx
-# 2) pipeline_evolution_master_summary_sweep_MC25_test.xlsx
-# 3) pipeline_evolution_bundle_MC25_test.rds
-# 4) README.md
+# 1) pipeline_evolution_output_final.xlsx
+# 2) pipeline_evolution_master_summary_sweep_final.xlsx
+# 3) pipeline_evolution_2050_snapshot_final.xlsx
+# 4) pipeline_evolution_output_bundle_final.rds
+# 5) README.md
 #
-# Smoke-test settings:
-# SIMS <- 25L
+# Excel workbook contains:
+# 1) baseline_draws
+# 2) accelerated_draws
+# 3) summary_quantiles
+# 4) summary_descriptives
+# 5) run_metadata
 # ============================================================
 
 suppressPackageStartupMessages({
@@ -48,12 +53,11 @@ graphics.off()
 # -------------------- PATH HELPERS --------------------
 
 normalise_path <- function(x) {
-  if (is.na(x) || !nzchar(x)) return(NA_character_)
-  gsub("\\\\", "/", normalizePath(x, winslash = "/", mustWork = FALSE))
-}
-
-normalise_path_vec <- function(x) {
-  vapply(x, normalise_path, character(1))
+  x <- as.character(x)
+  out <- rep(NA_character_, length(x))
+  ok <- !is.na(x) & nzchar(x)
+  out[ok] <- gsub("\\\\", "/", normalizePath(x[ok], winslash = "/", mustWork = FALSE))
+  out
 }
 
 get_script_dir <- function() {
@@ -104,10 +108,13 @@ find_repo_root <- function(start_dirs) {
         d,
         "data",
         "Simulation_Inputs",
-        "pipeline_evolution_module.xlsx"
+        "pipeline_evolution_module_inputs.xlsx"
       )
       
-      if (file.exists(candidate)) {
+      if (
+        file.exists(candidate) &&
+        dir.exists(file.path(d, "simulation_codes"))
+      ) {
         return(d)
       }
     }
@@ -116,119 +123,78 @@ find_repo_root <- function(start_dirs) {
   NA_character_
 }
 
-workbook_has_required_sheets <- function(path, required_sheets) {
-  if (!file.exists(path)) return(FALSE)
-  
-  sheets <- tryCatch(
-    readxl::excel_sheets(path),
-    error = function(e) character()
-  )
-  
-  all(required_sheets %in% sheets)
-}
-
-choose_input_workbook <- function(repo_root, script_dir, required_sheets) {
-  candidate_name <- "pipeline_evolution_module.xlsx"
-  
-  candidate_paths <- character()
-  candidate_modes <- character()
-  
-  if (!is.na(repo_root)) {
-    candidate_paths <- c(
-      candidate_paths,
-      file.path(repo_root, "data", "Simulation_Inputs", candidate_name)
-    )
-    
-    candidate_modes <- c(
-      candidate_modes,
-      "github_repo_layout"
-    )
-  }
-  
-  candidate_paths <- c(
-    candidate_paths,
-    file.path(getwd(), candidate_name),
-    file.path(script_dir, candidate_name)
-  )
-  
-  candidate_modes <- c(
-    candidate_modes,
-    "local_working_directory",
-    "local_script_directory"
-  )
-  
-  candidate_paths <- normalise_path_vec(candidate_paths)
-  
-  keep <- !duplicated(candidate_paths)
-  candidate_paths <- candidate_paths[keep]
-  candidate_modes <- candidate_modes[keep]
-  
-  for (i in seq_along(candidate_paths)) {
-    if (workbook_has_required_sheets(candidate_paths[[i]], required_sheets)) {
-      return(
-        list(
-          path = candidate_paths[[i]],
-          mode = candidate_modes[[i]]
-        )
-      )
-    }
-  }
-  
-  existing <- candidate_paths[file.exists(candidate_paths)]
-  
-  stop(
-    paste0(
-      "No valid input workbook found.\n\n",
-      "The script looked for:\n",
-      paste0("- ", candidate_paths, collapse = "\n"),
-      "\n\n",
-      "A valid workbook must contain these sheets:\n",
-      paste0("- ", required_sheets, collapse = "\n"),
-      "\n\n",
-      "Existing workbook candidates found:\n",
-      ifelse(length(existing) == 0, "none", paste0(existing, collapse = "\n"))
-    ),
-    call. = FALSE
-  )
-}
-
 # -------------------- PATHS --------------------
-
-required_sheets <- c(
-  "smr_design_inputs",
-  "phase_rules",
-  "design_phase_failures",
-  "failure_rates_smrs"
-)
 
 SCRIPT_DIR <- get_script_dir()
 REPO_ROOT  <- find_repo_root(c(getwd(), SCRIPT_DIR))
 
-input_choice <- choose_input_workbook(
-  repo_root = REPO_ROOT,
-  script_dir = SCRIPT_DIR,
-  required_sheets = required_sheets
-)
+INPUT_FILE <- "pipeline_evolution_module_inputs.xlsx"
 
-P_WORKBOOK <- normalise_path(input_choice$path)
-PATH_MODE  <- input_choice$mode
-
-if (!is.na(REPO_ROOT) && PATH_MODE == "github_repo_layout") {
+if (!is.na(REPO_ROOT)) {
+  PATH_MODE <- "github_repo_layout"
+  
+  P_WORKBOOK <- file.path(
+    REPO_ROOT,
+    "data",
+    "Simulation_Inputs",
+    INPUT_FILE
+  )
+  
   OUTDIR <- file.path(
     REPO_ROOT,
     "outputs",
     "Simulation_Outputs",
     "02_pipeline_evolution",
-    "pipeline_evolution_MC25_test_outputs"
+    "pipeline_evolution_output_final"
   )
-} else {
+  
+} else if (file.exists(file.path(getwd(), INPUT_FILE))) {
+  PATH_MODE <- "local_working_directory"
+  
+  P_WORKBOOK <- file.path(
+    getwd(),
+    INPUT_FILE
+  )
+  
   OUTDIR <- file.path(
-    dirname(P_WORKBOOK),
-    "pipeline_evolution_MC25_test_outputs"
+    getwd(),
+    "02_pipeline_evolution_outputs",
+    "pipeline_evolution_output_final"
+  )
+  
+} else if (file.exists(file.path(SCRIPT_DIR, INPUT_FILE))) {
+  PATH_MODE <- "local_script_directory"
+  
+  P_WORKBOOK <- file.path(
+    SCRIPT_DIR,
+    INPUT_FILE
+  )
+  
+  OUTDIR <- file.path(
+    SCRIPT_DIR,
+    "02_pipeline_evolution_outputs",
+    "pipeline_evolution_output_final"
+  )
+  
+} else {
+  stop(
+    paste0(
+      "Input workbook not found.\n\n",
+      "Expected either:\n",
+      "1) data/Simulation_Inputs/pipeline_evolution_module_inputs.xlsx inside the repository, or\n",
+      "2) pipeline_evolution_module_inputs.xlsx in the working directory, or\n",
+      "3) pipeline_evolution_module_inputs.xlsx next to this script.\n\n",
+      "Current working directory:\n",
+      getwd(), "\n\n",
+      "Detected script directory:\n",
+      SCRIPT_DIR
+    ),
+    call. = FALSE
   )
 }
 
-OUTDIR <- normalise_path(OUTDIR)
+P_WORKBOOK <- normalise_path(P_WORKBOOK)
+OUTDIR     <- normalise_path(OUTDIR)
 
 if (!file.exists(P_WORKBOOK)) {
   stop("Input workbook not found: ", P_WORKBOOK, call. = FALSE)
@@ -238,18 +204,41 @@ if (!dir.exists(OUTDIR)) {
   dir.create(OUTDIR, recursive = TRUE)
 }
 
+# -------------------- USER RUN NOTE --------------------
+#
+# The final submission run uses 10,000 Monte Carlo simulations per design:
+#
+#   SIMS <- 10000L
+#
+# For quick local testing, debugging, or checking that the script runs correctly,
+# users may temporarily reduce this to:
+#
+#   SIMS <- 25L
+#
+# The value should be restored to SIMS <- 10000L before reproducing the final
+# manuscript outputs.
+#
+# -------------------------------------------------------
+
 # -------------------- GLOBALS --------------------
 
-RUN_TYPE   <- "MC25_test"
+RUN_TYPE   <- "final"
 CUT_YEAR   <- 2025L
 NEXT_FLOOR <- 2026.0
-SIMS       <- 25L
+SIMS       <- 10000L
 SEED       <- 42
 YEARS      <- 2026:2050
 
 set.seed(SEED)
 
 run_timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+
+required_sheets <- c(
+  "smr_design_inputs",
+  "phase_rules",
+  "design_phase_failures",
+  "failure_rates_smrs"
+)
 
 available_sheets <- readxl::excel_sheets(P_WORKBOOK)
 missing_sheets <- setdiff(required_sheets, available_sheets)
@@ -330,97 +319,34 @@ safe_max <- function(x) {
   max(x)
 }
 
-require_columns <- function(df, cols, sheet_name) {
-  missing_cols <- setdiff(cols, names(df))
-  
-  if (length(missing_cols) > 0) {
-    stop(
-      "Missing required column(s) in sheet `",
-      sheet_name,
-      "`: ",
-      paste(missing_cols, collapse = ", "),
-      call. = FALSE
-    )
-  }
-}
-
-get_chr <- function(df, nm) {
-  if (nm %in% names(df)) {
-    as.character(df[[nm]])
-  } else {
-    rep(NA_character_, nrow(df))
-  }
-}
-
 # -------------------- LOAD DESIGN INPUTS --------------------
 
-smr_raw <- readxl::read_excel(P_WORKBOOK, sheet = "smr_design_inputs")
-
-require_columns(
-  smr_raw,
-  c(
-    "design",
-    "phase",
-    "country",
-    "region",
-    "oecd",
-    "national_champion",
-    "size",
-    "cooling_type",
-    "water_cooled",
-    "spectrum",
-    "uranium_enrichment",
-    "cd_start",
-    "bd_start",
-    "dd_start",
-    "licensing_start",
-    "construction_start",
-    "operational_start"
-  ),
-  "smr_design_inputs"
-)
-
-smr_specs <- tibble::tibble(
-  design = stringr::str_trim(as.character(smr_raw$design)),
-  phase  = as_phase(smr_raw$phase),
-  configuration = get_chr(smr_raw, "configuration"),
-  country = as.character(smr_raw$country),
-  region  = as.character(smr_raw$region),
-  oecd = as.logical(smr_raw$oecd),
-  national_champion = as.logical(smr_raw$national_champion),
-  size = suppressWarnings(as.numeric(smr_raw$size)),
-  cooling_type = as.character(smr_raw$cooling_type),
-  water_cooled = as.logical(smr_raw$water_cooled),
-  spectrum = as.character(smr_raw$spectrum),
-  fuel_binary = get_chr(smr_raw, "fuel_binary"),
-  uranium_enrichment = as.character(smr_raw$uranium_enrichment),
-  cd_start = suppressWarnings(as.numeric(smr_raw$cd_start)),
-  bd_start = suppressWarnings(as.numeric(smr_raw$bd_start)),
-  dd_start = suppressWarnings(as.numeric(smr_raw$dd_start)),
-  licensing_start = suppressWarnings(as.numeric(smr_raw$licensing_start)),
-  construction_start = suppressWarnings(as.numeric(smr_raw$construction_start)),
-  operational_start = suppressWarnings(as.numeric(smr_raw$operational_start))
-)
+smr_specs <- readxl::read_excel(P_WORKBOOK, sheet = "smr_design_inputs") %>%
+  dplyr::transmute(
+    design = stringr::str_trim(as.character(design)),
+    phase  = as_phase(phase),
+    country = as.character(country),
+    region  = as.character(region),
+    oecd = as.logical(oecd),
+    national_champion = as.logical(national_champion),
+    size = suppressWarnings(as.numeric(size)),
+    cooling_type = as.character(cooling_type),
+    water_cooled = as.logical(water_cooled),
+    spectrum = as.character(spectrum),
+    uranium_enrichment = as.character(uranium_enrichment),
+    cd_start = suppressWarnings(as.numeric(cd_start)),
+    bd_start = suppressWarnings(as.numeric(bd_start)),
+    dd_start = suppressWarnings(as.numeric(dd_start)),
+    licensing_start = suppressWarnings(as.numeric(licensing_start)),
+    construction_start = suppressWarnings(as.numeric(construction_start)),
+    operational_start = suppressWarnings(as.numeric(operational_start))
+  )
 
 stopifnot(nrow(smr_specs) == dplyr::n_distinct(smr_specs$design))
 
 # -------------------- LOAD PHASE RULES --------------------
 
-phase_rules_raw <- readxl::read_excel(P_WORKBOOK, sheet = "phase_rules")
-
-require_columns(
-  phase_rules_raw,
-  c(
-    "design",
-    "baseline_condition",
-    "accelerated_condition",
-    "phase_rule_baseline_licensing",
-    "phase_rule_accelerated_licensing"
-  ),
-  "phase_rules"
-)
-
-phase_rules <- phase_rules_raw %>%
+phase_rules <- readxl::read_excel(P_WORKBOOK, sheet = "phase_rules") %>%
   dplyr::transmute(
     design = stringr::str_trim(as.character(design)),
     baseline_condition = norm_na(baseline_condition),
@@ -439,21 +365,7 @@ phase_rules <- phase_rules_raw %>%
 
 # -------------------- LOAD FAILURE RATES --------------------
 
-fail_rates_raw <- readxl::read_excel(P_WORKBOOK, sheet = "failure_rates_smrs")
-
-require_columns(
-  fail_rates_raw,
-  c(
-    "design",
-    "licensing_failure_baseline",
-    "licensing_failure_accelerated",
-    "construction_failure_baseline",
-    "construction_failure_accelerated"
-  ),
-  "failure_rates_smrs"
-)
-
-fail_rates <- fail_rates_raw %>%
+fail_rates <- readxl::read_excel(P_WORKBOOK, sheet = "failure_rates_smrs") %>%
   dplyr::transmute(
     design = stringr::str_trim(as.character(design)),
     licensing_failure_baseline       = clamp01(licensing_failure_baseline),
@@ -477,20 +389,7 @@ fail_rates <- fail_rates_raw %>%
 
 # -------------------- LOAD DESIGN-PHASE FAILURES --------------------
 
-dpf_raw <- readxl::read_excel(P_WORKBOOK, sheet = "design_phase_failures")
-
-require_columns(
-  dpf_raw,
-  c(
-    "phase",
-    "scenario",
-    "failures_k",
-    "total_N"
-  ),
-  "design_phase_failures"
-)
-
-dpf <- dpf_raw %>%
+dpf <- readxl::read_excel(P_WORKBOOK, sheet = "design_phase_failures") %>%
   dplyr::transmute(
     phase = as_phase(phase),
     scenario = as_scen(scenario),
@@ -516,7 +415,7 @@ if (length(miss_sc) > 0) {
 }
 
 for (sc in req_scens) {
-  missing_phase <- setdiff(
+  mm <- setdiff(
     req_phases,
     dpf %>%
       dplyr::filter(scenario == sc) %>%
@@ -524,12 +423,12 @@ for (sc in req_scens) {
       unique()
   )
   
-  if (length(missing_phase) > 0) {
+  if (length(mm) > 0) {
     stop(
       "Missing phases in design_phase_failures for ",
       sc,
       ": ",
-      paste(missing_phase, collapse = ", "),
+      paste(mm, collapse = ", "),
       call. = FALSE
     )
   }
@@ -631,7 +530,6 @@ get_p <- function(phase, scenario) {
 
 lognorm_from_mean_sd <- function(mean, sd) {
   v <- log(1 + (sd^2) / (mean^2))
-  
   list(
     meanlog = log(mean) - 0.5 * v,
     sdlog = sqrt(v)
@@ -1150,8 +1048,6 @@ summary_descriptives <- dplyr::bind_rows(
 ) %>%
   dplyr::arrange(scenario, design)
 
-# -------------------- RUN METADATA --------------------
-
 run_metadata <- tibble::tibble(
   item = c(
     "script_name",
@@ -1177,7 +1073,7 @@ run_metadata <- tibble::tibble(
     "platform"
   ),
   value = c(
-    "pipeline_evolution_MC25_test_GitHub.R",
+    "pipeline_evolution_monte_carlo.R",
     "02_pipeline_evolution",
     RUN_TYPE,
     PATH_MODE,
@@ -1195,7 +1091,7 @@ run_metadata <- tibble::tibble(
     "design_phase_failures",
     "failure_rates_smrs",
     OUTDIR,
-    "FAILGATED_LOGNORMAL_CURRENT_PIPELINE",
+    "FAILGATED_LOGNORMAL",
     paste(R.version$major, R.version$minor, sep = "."),
     R.version$platform
   )
@@ -1205,7 +1101,7 @@ run_metadata <- tibble::tibble(
 
 xlsx_path <- file.path(
   OUTDIR,
-  "pipeline_evolution_MC25_test.xlsx"
+  "pipeline_evolution_output_final.xlsx"
 )
 
 xlsx_contents <- list(
@@ -1237,22 +1133,16 @@ build_ts <- function(mc_obj, grouping_vars = NULL) {
   
   results <- lapply(YEARS, function(y) {
     tmp <- df %>%
-      dplyr::mutate(active_by_year = success & foak_year_int <= y)
+      dplyr::filter(success, foak_year_int <= y)
     
     if (!is.null(grouping_vars)) {
       tmp <- tmp %>%
         dplyr::group_by(sim, dplyr::across(dplyr::all_of(grouping_vars))) %>%
-        dplyr::summarise(
-          total = sum(active_by_year, na.rm = TRUE),
-          .groups = "drop"
-        )
+        dplyr::summarise(total = dplyr::n(), .groups = "drop")
     } else {
       tmp <- tmp %>%
         dplyr::group_by(sim) %>%
-        dplyr::summarise(
-          total = sum(active_by_year, na.rm = TRUE),
-          .groups = "drop"
-        )
+        dplyr::summarise(total = dplyr::n(), .groups = "drop")
     }
     
     tmp$year <- y
@@ -1291,17 +1181,11 @@ compute_2050 <- function(mc_obj, grouping_vars = NULL) {
   if (!is.null(grouping_vars)) {
     df <- df %>%
       dplyr::group_by(sim, dplyr::across(dplyr::all_of(grouping_vars))) %>%
-      dplyr::summarise(
-        total = sum(success_2050, na.rm = TRUE),
-        .groups = "drop"
-      )
+      dplyr::summarise(total = sum(success_2050), .groups = "drop")
   } else {
     df <- df %>%
       dplyr::group_by(sim) %>%
-      dplyr::summarise(
-        total = sum(success_2050, na.rm = TRUE),
-        .groups = "drop"
-      )
+      dplyr::summarise(total = sum(success_2050), .groups = "drop")
   }
   
   if (!is.null(grouping_vars)) {
@@ -1351,7 +1235,12 @@ accelerated_2050_region <- compute_2050(mc_accelerated, "region")
 
 master_sweep_path <- file.path(
   OUTDIR,
-  "pipeline_evolution_master_summary_sweep_MC25_test.xlsx"
+  "pipeline_evolution_master_summary_sweep_final.xlsx"
+)
+
+snapshot_2050_path <- file.path(
+  OUTDIR,
+  "pipeline_evolution_2050_snapshot_final.xlsx"
 )
 
 writexl::write_xlsx(
@@ -1366,15 +1255,21 @@ writexl::write_xlsx(
     baseline_cooling = baseline_cooling,
     accelerated_cooling = accelerated_cooling,
     baseline_region = baseline_region,
-    accelerated_region = accelerated_region,
-    baseline_2050_global = baseline_2050_global,
-    accelerated_2050_global = accelerated_2050_global,
-    baseline_2050_oecd = baseline_2050_oecd,
-    accelerated_2050_oecd = accelerated_2050_oecd,
-    baseline_2050_region = baseline_2050_region,
-    accelerated_2050_region = accelerated_2050_region
+    accelerated_region = accelerated_region
   ),
   master_sweep_path
+)
+
+writexl::write_xlsx(
+  list(
+    baseline_global_2050 = baseline_2050_global,
+    accelerated_global_2050 = accelerated_2050_global,
+    baseline_oecd_2050 = baseline_2050_oecd,
+    accelerated_oecd_2050 = accelerated_2050_oecd,
+    baseline_region_2050 = baseline_2050_region,
+    accelerated_region_2050 = accelerated_2050_region
+  ),
+  snapshot_2050_path
 )
 
 # -------------------- EXPORT BUNDLE RDS --------------------
@@ -1413,7 +1308,7 @@ model_bundle <- list(
 
 bundle_path <- file.path(
   OUTDIR,
-  "pipeline_evolution_bundle_MC25_test.rds"
+  "pipeline_evolution_output_bundle_final.rds"
 )
 
 saveRDS(model_bundle, file = bundle_path)
@@ -1423,11 +1318,9 @@ saveRDS(model_bundle, file = bundle_path)
 readme_path <- file.path(OUTDIR, "README.md")
 
 readme_lines <- c(
-  "# Pipeline evolution Monte Carlo MC25 test outputs",
+  "# Pipeline evolution Monte Carlo outputs",
   "",
-  "This folder contains GitHub/submission smoke-test outputs from the fail-gated pipeline evolution Monte Carlo module.",
-  "",
-  "The test uses 25 simulations per design and is intended only to validate script logic, repository paths, workbook loading and output naming before the final 10,000-simulation version.",
+  "This folder contains final outputs from the fail-gated pipeline evolution Monte Carlo module.",
   "",
   "## Input workbook",
   "",
@@ -1442,29 +1335,31 @@ readme_lines <- c(
   "",
   "## Output files",
   "",
-  "- `pipeline_evolution_MC25_test.xlsx`: raw baseline and accelerated draws plus design-level summaries.",
-  "- `pipeline_evolution_master_summary_sweep_MC25_test.xlsx`: cumulative FOAK summaries by year and grouping, plus 2050 summaries.",
-  "- `pipeline_evolution_bundle_MC25_test.rds`: compact R bundle containing outputs and model objects.",
-  "- `README.md`: run description and metadata.",
+  "- `pipeline_evolution_output_final.xlsx`: raw baseline and accelerated draws plus design-level summaries.",
+  "- `pipeline_evolution_master_summary_sweep_final.xlsx`: cumulative FOAK summaries by year and grouping.",
+  "- `pipeline_evolution_2050_snapshot_final.xlsx`: 2050 snapshot summaries.",
+  "- `pipeline_evolution_output_bundle_final.rds`: compact R bundle containing outputs and model objects.",
   "",
   "## Run settings",
   "",
-  paste0("- Module: 02_pipeline_evolution"),
-  paste0("- Model type: FAILGATED_LOGNORMAL_CURRENT_PIPELINE"),
-  paste0("- Run type: ", RUN_TYPE),
   paste0("- Path mode: ", PATH_MODE),
   paste0("- Simulations per design: ", SIMS),
   paste0("- Seed: ", SEED),
   paste0("- Cut year: ", CUT_YEAR),
   paste0("- Next phase floor: ", NEXT_FLOOR),
-  paste0("- Run timestamp: ", run_timestamp)
+  paste0("- Run timestamp: ", run_timestamp),
+  "",
+  "## Quick local testing",
+  "",
+  "For quick local testing, users may temporarily reduce `SIMS <- 10000L` to `SIMS <- 25L` in the script.",
+  "The value should be restored to `SIMS <- 10000L` before reproducing the final manuscript outputs."
 )
 
 writeLines(readme_lines, readme_path)
 
 # -------------------- CONSOLE OUTPUT --------------------
 
-cat("\n==================== PIPELINE EVOLUTION MC25 TEST COMPLETE ====================\n")
+cat("\n==================== PIPELINE EVOLUTION MONTE CARLO COMPLETE ====================\n")
 cat("Module: 02_pipeline_evolution\n")
 cat("Run type:", RUN_TYPE, "\n")
 cat("Path mode:", PATH_MODE, "\n")
@@ -1476,11 +1371,13 @@ cat("Simulations per design:", SIMS, "\n")
 cat("Output directory:\n", OUTDIR, "\n")
 cat("Main Excel saved:\n", xlsx_path, "\n")
 cat("Master summary sweep saved:\n", master_sweep_path, "\n")
+cat("2050 snapshot saved:\n", snapshot_2050_path, "\n")
 cat("Bundle RDS saved:\n", bundle_path, "\n")
 cat("README saved:\n", readme_path, "\n")
 cat("================================================================================\n\n")
 
 print(xlsx_path)
 print(master_sweep_path)
+print(snapshot_2050_path)
 print(bundle_path)
 print(readme_path)
