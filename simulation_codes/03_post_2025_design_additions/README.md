@@ -10,7 +10,7 @@ This module complements the project-progression and pipeline-evolution modules b
 
 ## Input workbook
 
-- `data/Simulation_Inputs/pipeline_evolution_module_inputs.xlsx`
+- `data/Simulation_Inputs/post_2025_design_additions_inputs.xlsx`
 
 ## Expected outputs
 
