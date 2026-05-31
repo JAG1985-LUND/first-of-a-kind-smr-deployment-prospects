@@ -3,12 +3,14 @@
 # CONSTRUCTION CASCADE SENSITIVITY
 # FAIL-GATED • FULL CLEAN SCRIPT • LOGNORMAL EVERYWHERE
 #
-# JAG SMOKE-TEST VERSION:
-#   • 25 simulations
-#   • Set SIMS <- 10000L for the full manuscript-scale run
+# GITHUB / MARTA VERSION:
+#   • Input workbook must be in the same folder as this script
+#   • Outputs are written to the current working folder
+#   • Full manuscript-scale run uses 10,000 simulations
+#   • For a quick smoke test, temporarily set SIMS <- 25L
 #
 # INPUT WORKBOOK:
-#   C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026/construction_cascade_sensitivity_inputs.xlsx
+#   construction_cascade_sensitivity_inputs.xlsx
 #
 # REQUIRED SHEETS:
 #   1) smr_design_inputs
@@ -17,7 +19,7 @@
 #   4) construction_cascade_failures
 #
 # OUTPUT:
-#   C:/Users/jo3151go/OneDrive - Lund University/Stage 1 Data Drop/SMR55_ProjectProgression_Outputs_CONSTRUCTION_CASCADE_SENSITIVITY/
+#   ./SMR55_ProjectProgression_Outputs_CONSTRUCTION_CASCADE_SENSITIVITY/
 #
 # NOTE:
 #   • LOGNORMAL EVERYWHERE for duration sampling
@@ -34,14 +36,16 @@ suppressPackageStartupMessages({
 })
 
 # -------------------- PATHS --------------------
-P_INPUT <- "C:/Users/jo3151go/OneDrive/Nature_Energy_SMRs_2026/construction_cascade_sensitivity_inputs.xlsx"
+FILE <- "construction_cascade_sensitivity_inputs.xlsx"
 
-OUTDIR <- "C:/Users/jo3151go/OneDrive - Lund University/Stage 1 Data Drop/SMR55_ProjectProgression_Outputs_CONSTRUCTION_CASCADE_SENSITIVITY/"
+P_INPUT <- FILE
+
+OUTDIR <- "SMR55_ProjectProgression_Outputs_CONSTRUCTION_CASCADE_SENSITIVITY"
 
 # -------------------- GLOBALS --------------------
 CUT_YEAR   <- 2025L
 NEXT_FLOOR <- 2026.0
-SIMS       <- 25L
+SIMS       <- 10000L
 SEED       <- 42L
 YEARS      <- 2026:2050
 
@@ -801,7 +805,7 @@ run_metadata <- tibble::tibble(
     RUN_DIR,
     LATEST_DIR,
     MODEL_TAG,
-    "For the full manuscript-scale run, set SIMS <- 10000L."
+    "GitHub/manuscript-scale run uses SIMS <- 10000L. For a quick smoke test, temporarily set SIMS <- 25L."
   )
 )
 
@@ -1140,7 +1144,7 @@ cat("2050 snapshot (run):\n", snapshot_2050_path_run, "\n")
 cat("2050 snapshot (latest):\n", snapshot_2050_path_latest, "\n")
 cat("Bundle RDS saved:\n", file.path(LATEST_DIR, paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_bundle_latest.rds")), "\n")
 cat("Workspace RData saved:\n", file.path(LATEST_DIR, paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_workspace_latest.RData")), "\n")
-cat("For the full manuscript-scale run, set SIMS <- 10000L.\n")
+cat("For a quick smoke test, temporarily set SIMS <- 25L.\n")
 cat("==========================================================================\n\n")
 
 print(xlsx_path_run)
