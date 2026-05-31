@@ -11,7 +11,7 @@
 # 02_pipeline_evolution
 #
 # GitHub input workbook:
-# data/Simulation_Inputs/pipeline_evolution_module.xlsx
+# data/Simulation_Inputs/pipeline_evolution_module_inputs.xlsx
 #
 # Required sheets:
 # 1) smr_design_inputs
