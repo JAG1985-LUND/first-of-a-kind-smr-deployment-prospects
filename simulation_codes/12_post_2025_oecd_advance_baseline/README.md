@@ -2,7 +2,7 @@
 
 This folder contains the simulation code and input workbook used to run the post-2025 design additions OECD advance sensitivity for the Baseline scenario.
 
-The sensitivity tests a counterfactual in which OECD countries are assumed to achieve licensing durations comparable to the accelerated licensing pathway used for China and Russia. In the Baseline scenario, this means that OECD countries plus China and Russia use the accelerated licensing duration distribution, while other non-OECD regions continue to use the standard Baseline licensing duration distribution.
+The sensitivity tests a counterfactual in which OECD countries are assumed to achieve licensing durations comparable to the baseline licensing pathway used for China and Russia (1-3 years). In the Baseline scenario, this means that OECD countries plus China and Russia use the same licensing duration distribution, while other non-OECD regions continue to use the standard Baseline licensing duration distribution.
 
 ## Files
 
