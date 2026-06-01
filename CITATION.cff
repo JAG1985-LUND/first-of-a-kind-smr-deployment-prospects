@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this repository, please cite the associated manuscript."
+title: "Data, code and outputs for First-of-a-Kind deployment prospects for small modular reactors"
+type: software
+authors:
+  - family-names: Gordon
+    given-names: J. A.
+  - family-names: Kazlou
+    given-names: T.
+  - family-names: Jewell
+    given-names: J.
+  - family-names: Cherp
+    given-names: A.
+repository-code: "https://github.com/JAG1985-LUND/first-of-a-kind-smr-deployment-prospects"
