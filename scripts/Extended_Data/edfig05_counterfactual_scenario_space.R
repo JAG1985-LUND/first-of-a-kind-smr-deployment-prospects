@@ -5,7 +5,7 @@
 # space for FOAK SMR deployment.
 #
 # Required input:
-# edfig05_source_data_scenario_space.xlsx
+# data/Extended_Data/edfig05_source_data_scenario_space.xlsx
 #
 # Outputs:
 # edfig05_scenario_space.png
@@ -30,7 +30,11 @@ graphics.off()
 # PATHS
 # ------------------------------------------------------------
 
-FILE <- "edfig05_source_data_scenario_space.xlsx"
+FILE <- file.path(
+  "data",
+  "Extended_Data",
+  "edfig05_source_data_scenario_space.xlsx"
+)
 
 OUT_DIR <- "."
 
@@ -108,8 +112,8 @@ clean_scenario <- function(x) {
     x %in% c("reference", "Reference") ~ "reference",
     x %in% c("phase_completion", "Current phase completion") ~ "Current phase completion",
     x %in% c("oecd_advance", "ADVANCE-OECD licensing") ~ "ADVANCE-OECD licensing",
-    x %in% c("late_stage_risk", "Late stage risk", "Late stage risk ", "Late-stage risk") ~ "Late-stage risk",
     x %in% c("construction_cascade", "Construction cascade") ~ "Construction cascade",
+    x %in% c("late_stage_risk", "Late stage risk", "Late stage risk ", "Late-stage risk") ~ "Late-stage risk",
     x %in% c("stalled_development", "Stalled development") ~ "Stalled development",
     TRUE ~ x
   )
@@ -141,7 +145,7 @@ make_step_band <- function(x, x_end = 2050) {
     ) %>%
     filter(xnext > year)
   
-  tibble(
+  data.frame(
     year = as.vector(rbind(x$year, x$xnext)),
     ymin = as.vector(rbind(x$ymin, x$ymin)),
     ymax = as.vector(rbind(x$ymax, x$ymax))
