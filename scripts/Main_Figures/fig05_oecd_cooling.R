@@ -128,9 +128,9 @@ col_nonoecd_line <- "#A67C00"
 col_nonoecd_fill <- "#A67C00"
 
 col_water_line <- "#2C72B0"
-col_water_fill <- "#CFE3FA"
+col_water_fill <- "#8DBBE8"
 col_amr_line   <- "#C45A32"
-col_amr_fill   <- "#F8D3BA"
+col_amr_fill   <- "#E79A73"
 
 # ------------------------------------------------------------
 # HELPERS
