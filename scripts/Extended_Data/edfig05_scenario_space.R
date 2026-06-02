@@ -62,7 +62,7 @@ AXIS_TITLE_SIZE   <- 7
 LEGEND_TITLE_SIZE <- 7
 LEGEND_TEXT_SIZE  <- 6.5
 
-LEGEND_TITLE <- "Scenario-bounded feasibility space"
+LEGEND_TITLE <- "Sensitivity-based feasibility space"
 
 LEGEND_X_LEFT <- 2019.0
 LEGEND_X_TEXT <- 2020.55
