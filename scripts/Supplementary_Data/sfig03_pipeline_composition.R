@@ -5,11 +5,12 @@
 # global SMR design pipeline at end-2025.
 #
 # Required input:
-# sfig03_source_data_pipeline_composition.xlsx
+# data/Supplementary_Data/sfig03_source_data_pipeline_composition.xlsx
 #
 # Outputs:
-# sfig03_pipeline_composition.png
-# sfig03_pipeline_composition.pdf
+# outputs/Supplementary_Figures/Figure_03/sfig03_pipeline_composition.png
+# outputs/Supplementary_Figures/Figure_03/sfig03_pipeline_composition.pdf
+# outputs/Supplementary_Figures/Figure_03/sfig03_pipeline_composition.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -31,15 +32,60 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
+# FIND REPOSITORY ROOT
+# ------------------------------------------------------------
+
+find_repo_root <- function(start_dir = getwd()) {
+  current_dir <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    has_git     <- dir.exists(file.path(current_dir, ".git"))
+    has_data    <- dir.exists(file.path(current_dir, "data"))
+    has_scripts <- dir.exists(file.path(current_dir, "scripts"))
+    
+    if (has_git && has_data && has_scripts) {
+      return(current_dir)
+    }
+    
+    parent_dir <- dirname(current_dir)
+    
+    if (identical(parent_dir, current_dir)) {
+      stop(
+        "Repository root not found. Run this script from inside the ",
+        "first-of-a-kind-smr-deployment-prospects repository."
+      )
+    }
+    
+    current_dir <- parent_dir
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+# ------------------------------------------------------------
 # PATHS
 # ------------------------------------------------------------
 
 FILE <- "sfig03_source_data_pipeline_composition.xlsx"
 
-OUT_DIR <- "."
+FILE_IN <- file.path(
+  ROOT_DIR,
+  "data",
+  "Supplementary_Data",
+  FILE
+)
 
-if (!file.exists(FILE)) {
-  stop("Input file not found: ", FILE)
+OUT_DIR <- file.path(
+  ROOT_DIR,
+  "outputs",
+  "Supplementary_Figures",
+  "Figure_03"
+)
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+
+if (!file.exists(FILE_IN)) {
+  stop("Input file not found: ", FILE_IN)
 }
 
 # ------------------------------------------------------------
@@ -198,7 +244,7 @@ wrap_panel <- function(p, tag) {
       hjust = 0,
       vjust = 1,
       size = 12,
-      fontface = "plain"
+      fontface = "bold"
     )
 }
 
@@ -206,7 +252,7 @@ wrap_panel <- function(p, tag) {
 # LOAD AND STANDARDISE DATA
 # ============================================================
 
-df_raw <- read_excel(FILE) %>%
+df_raw <- read_excel(FILE_IN) %>%
   rename_with(clean_names_local)
 
 required_cols <- c(
@@ -560,8 +606,13 @@ ggsave(
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
-  device = cairo_pdf,
+  device = grDevices::cairo_pdf,
   bg = "white"
+)
+
+saveRDS(
+  object = fig,
+  file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
 )
 
 fig
