@@ -6,11 +6,12 @@
 # non-OECD SMR designs.
 #
 # Required input:
-# sfig08_development_duration_trl.xlsx
+# data/Supplementary_Data/sfig08_source_data_development_duration_trl.xlsx
 #
 # Outputs:
-# sfig08_development_duration_trl.png
-# sfig08_development_duration_trl.pdf
+# outputs/Supplementary_Figures/Figure_08/sfig08_development_duration_trl.png
+# outputs/Supplementary_Figures/Figure_08/sfig08_development_duration_trl.pdf
+# outputs/Supplementary_Figures/Figure_08/sfig08_development_duration_trl.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -25,7 +26,8 @@ rm(list = ls())
 graphics.off()
 
 # ============================================================
-# SUPPLEMENTARY FIGURE 8 — DEVELOPMENT DURATION vs TRL
+# SUPPLEMENTARY FIGURE 8
+# DEVELOPMENT DURATION vs TRL
 # a) Global
 # b) OECD
 # c) Non-OECD
@@ -34,16 +36,71 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
+# FIND REPOSITORY ROOT
+# ------------------------------------------------------------
+
+find_repo_root <- function(start_dir = getwd()) {
+  current_dir <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    has_git     <- dir.exists(file.path(current_dir, ".git"))
+    has_data    <- dir.exists(file.path(current_dir, "data"))
+    has_scripts <- dir.exists(file.path(current_dir, "scripts"))
+    
+    if (has_git && has_data && has_scripts) {
+      return(current_dir)
+    }
+    
+    parent_dir <- dirname(current_dir)
+    
+    if (identical(parent_dir, current_dir)) {
+      stop(
+        "Repository root not found. Run this script from inside the ",
+        "first-of-a-kind-smr-deployment-prospects repository."
+      )
+    }
+    
+    current_dir <- parent_dir
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+# ------------------------------------------------------------
 # PATHS
 # ------------------------------------------------------------
 
-FILE <- "sfig08_development_duration_trl.xlsx"
+FILE_CANDIDATES <- c(
+  "sfig08_source_data_development_duration_trl.xlsx",
+  "sfig08_development_duration_trl.xlsx"
+)
 
-OUT_DIR <- "."
+FILE_IN_CANDIDATES <- file.path(
+  ROOT_DIR,
+  "data",
+  "Supplementary_Data",
+  FILE_CANDIDATES
+)
 
-if (!file.exists(FILE)) {
-  stop("Input file not found: ", FILE)
+FILE_IN <- FILE_IN_CANDIDATES[file.exists(FILE_IN_CANDIDATES)][1]
+
+if (is.na(FILE_IN)) {
+  stop(
+    "Input file not found. Checked: ",
+    paste(FILE_IN_CANDIDATES, collapse = " | ")
+  )
 }
+
+FILE <- basename(FILE_IN)
+
+OUT_DIR <- file.path(
+  ROOT_DIR,
+  "outputs",
+  "Supplementary_Figures",
+  "Figure_08"
+)
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
@@ -127,7 +184,7 @@ theme_base <- theme_classic(base_size = BASE_SIZE) +
 # ============================================================
 
 raw <- read_excel(
-  FILE,
+  FILE_IN,
   sheet = 1
 )
 
@@ -169,7 +226,7 @@ oecd_col <- pick_col(
 if (any(is.na(c(phase_col, trl_col, dur_col, oecd_col)))) {
   stop(
     "Required columns were not found in ",
-    FILE,
+    FILE_IN,
     "\nAvailable columns are: ",
     paste(names(raw), collapse = ", ")
   )
@@ -285,7 +342,7 @@ add_panel_label <- function(plot_obj, panel_label) {
       hjust = 0,
       vjust = 1,
       size = 12,
-      fontface = "plain"
+      fontface = "bold"
     )
 }
 
@@ -445,8 +502,13 @@ ggsave(
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
-  device = cairo_pdf,
+  device = grDevices::cairo_pdf,
   bg = "white"
+)
+
+saveRDS(
+  object = fig_combined,
+  file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
 )
 
 fig_combined
