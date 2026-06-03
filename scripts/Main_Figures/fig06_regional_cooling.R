@@ -4,31 +4,15 @@
 # Reproduces Figure 6: regional FOAK SMR deployment trajectories and
 # cooling-type composition by 2050.
 #
-# Panel a shows median cumulative FOAK SMR deployments by region under the
-# Baseline scenario.
-#
-# Panel b shows median cumulative FOAK SMR deployments by region under the
-# Accelerated scenario.
-#
-# Panel c shows the median number of SMR designs reaching FOAK operation by
-# 2050 by region and reactor cooling type under the Baseline scenario,
-# distinguishing water-, metal-, salt- and gas-cooled designs.
-#
-# Panel d shows the median number of SMR designs reaching FOAK operation by
-# 2050 by region and reactor cooling type under the Accelerated scenario,
-# distinguishing water-, metal-, salt- and gas-cooled designs.
-#
-# In panels a and b, stacked areas indicate median cumulative deployments
-# over time.
-#
 # Required input:
-# fig06_source_data_regional_deployment_cooling_type.xlsx
+# data/Main_Figures/fig06_source_data_regional_cooling.xlsx
 #   - sheet: regional_deployment
 #   - sheet: cooling_type
 #
 # Outputs:
-# fig06_regional_cooling.png
-# fig06_regional_cooling.pdf
+# outputs/Figure_06/fig06_regional_cooling.png
+# outputs/Figure_06/fig06_regional_cooling.pdf
+# outputs/Figure_06/fig06_regional_cooling.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -51,8 +35,37 @@ graphics.off()
 # PATHS
 # ------------------------------------------------------------
 
-FILE <- "fig06_source_data_regional_deployment_cooling_type.xlsx"
-OUT_DIR <- "."
+SOURCE_FILE <- file.path("data", "Main_Figures", "fig06_source_data_regional_cooling.xlsx")
+
+find_repo_root <- function(start_dir = getwd(), target_file = SOURCE_FILE) {
+  current <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    if (file.exists(file.path(current, target_file))) {
+      return(current)
+    }
+    
+    parent <- dirname(current)
+    
+    if (identical(parent, current)) {
+      stop(
+        "Could not locate repository root.\n",
+        "Expected to find: ", target_file, "\n",
+        "Start directory was: ", normalizePath(start_dir, winslash = "/", mustWork = TRUE), "\n\n",
+        "Run this script from inside the GitHub repository, or set the working directory to the repository root."
+      )
+    }
+    
+    current <- parent
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+FILE <- file.path(ROOT_DIR, SOURCE_FILE)
+OUT_DIR <- file.path(ROOT_DIR, "outputs", "Figure_06")
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
@@ -459,6 +472,11 @@ ggsave(
   units = "mm",
   device = grDevices::cairo_pdf,
   bg = "white"
+)
+
+saveRDS(
+  fig06_regional_cooling,
+  file = file.path(OUT_DIR, paste0(FIGURE_STEM, ".rds"))
 )
 
 fig06_regional_cooling
