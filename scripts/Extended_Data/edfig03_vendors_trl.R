@@ -1,20 +1,16 @@
 # Code for the manuscript Gordon, J.A., Kazlou, T., Jewell, J. and Cherp, A.
 # First-of-a-Kind deployment prospects for small modular reactors
 #
-# Reproduces Extended Data Fig. 4: gaps between vendor targets and modelled
-# FOAK deployment timelines.
-#
-# Panel a compares vendor FOAK targets with modelled FOAK deployment timelines
-# for the global sample, OECD designs, non-OECD designs, water-cooled designs
-# and advanced modular reactors. Panel b compares vendor FOAK targets with
-# modelled FOAK deployment timelines by current development phase.
+# Reproduces Extended Data Fig. 3: vendor-announced FOAK target years and
+# modelled FOAK deployment years mapped against technology readiness levels.
 #
 # Required input:
-# data/Extended_Data/edfig04_source_data_ambition_gap.xlsx
+# data/Extended_Data/edfig03_source_data_vendors_trl.xlsx
 #
 # Outputs:
-# outputs/Extended_Data/edfig04_ambition_gap.png
-# outputs/Extended_Data/edfig04_ambition_gap.pdf
+# outputs/Extended_Data/Figure_03/edfig03_vendors_trl.png
+# outputs/Extended_Data/Figure_03/edfig03_vendors_trl.pdf
+# outputs/Extended_Data/Figure_03/edfig03_vendors_trl.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -28,281 +24,81 @@ rm(list = ls())
 graphics.off()
 
 # ============================================================
-# EXTENDED DATA FIGURE 4
-# VENDOR AMBITION GAP BY SAMPLE GROUP AND DEVELOPMENT PHASE
+# EXTENDED DATA FIGURE 3
+# VENDOR AMBITION GAP MAPPED AGAINST TECHNOLOGY READINESS LEVEL
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS — GITHUB RUN
+# PATHS
 # ------------------------------------------------------------
 
-FILE_IN <- file.path(
+SOURCE_FILE <- file.path(
   "data",
   "Extended_Data",
-  "edfig04_source_data_ambition_gap.xlsx"
+  "edfig03_source_data_vendors_trl.xlsx"
 )
 
-OUT_DIR <- file.path(
-  "outputs",
-  "Extended_Data"
-)
+find_repo_root <- function(start_dir = getwd(), target_file = SOURCE_FILE) {
+  current <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    if (file.exists(file.path(current, target_file))) {
+      return(current)
+    }
+    
+    parent <- dirname(current)
+    
+    if (identical(parent, current)) {
+      stop(
+        "Could not locate repository root.\n",
+        "Expected to find: ", target_file, "\n",
+        "Start directory was: ",
+        normalizePath(start_dir, winslash = "/", mustWork = TRUE),
+        "\n\nRun this script from inside the GitHub repository, or set the working directory to the repository root."
+      )
+    }
+    
+    current <- parent
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+FILE_IN <- file.path(ROOT_DIR, SOURCE_FILE)
+OUT_DIR <- file.path(ROOT_DIR, "outputs", "Extended_Data", "Figure_03")
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 if (!file.exists(FILE_IN)) {
   stop("Input file not found: ", FILE_IN)
 }
 
-dir.create(
-  OUT_DIR,
-  recursive = TRUE,
-  showWarnings = FALSE
-)
-
 # ------------------------------------------------------------
 # EXPORT SETTINGS
 # ------------------------------------------------------------
 
-SAVE_W_MM <- 180
-SAVE_H_MM <- 112
+SAVE_W_IN <- 10.9
+SAVE_H_IN <- 5.35
 SAVE_DPI  <- 600
+
+FILE_STUB <- "edfig03_vendors_trl"
 
 # ------------------------------------------------------------
 # TYPOGRAPHY
 # ------------------------------------------------------------
 
-BASE_SIZE         <- 7
-AXIS_TEXT_SIZE    <- 6.5
-AXIS_TITLE_SIZE   <- 7
-LEGEND_TEXT_SIZE  <- 2.10
-LEGEND_TITLE_SIZE <- 2.35
+BASE_SIZE         <- 13
+AXIS_TEXT_SIZE    <- 10.0
+AXIS_TITLE_SIZE   <- 11.0
+LEGEND_TEXT_SIZE  <- 10.0
+LEGEND_TITLE_SIZE <- 10.6
+PANEL_TAG_SIZE    <- 12
 
 # ------------------------------------------------------------
-# X SCALE
+# COLOURS
 # ------------------------------------------------------------
 
-X_LIMITS <- c(2025, 2057.2)
-X_BREAKS <- c(2025, 2035, 2045, 2055)
-
-# ------------------------------------------------------------
-# LOAD DATA
-# ------------------------------------------------------------
-
-panel_a_raw <- read_excel(
-  FILE_IN,
-  sheet = "panel_a",
-  .name_repair = "minimal"
-)
-
-panel_b_raw <- read_excel(
-  FILE_IN,
-  sheet = "panel_b",
-  .name_repair = "minimal"
-)
-
-names(panel_a_raw)[1:12] <- c(
-  "sample",
-  "sample_size",
-  "trl",
-  "vendor_p10", "vendor_p50", "vendor_p90",
-  "bas_gap_p10", "bas_gap_p50", "bas_gap_p90",
-  "acc_gap_p10", "acc_gap_p50", "acc_gap_p90"
-)
-
-names(panel_b_raw)[1:12] <- c(
-  "sample",
-  "sample_size",
-  "trl",
-  "vendor_p10", "vendor_p50", "vendor_p90",
-  "bas_gap_p10", "bas_gap_p50", "bas_gap_p90",
-  "acc_gap_p10", "acc_gap_p50", "acc_gap_p90"
-)
-
-vendors_gap_master <- bind_rows(
-  panel_a_raw,
-  panel_b_raw
-)
-
-# ------------------------------------------------------------
-# THEME
-# ------------------------------------------------------------
-
-base_theme <- theme_classic(base_size = BASE_SIZE) +
-  theme(
-    panel.grid = element_blank(),
-    axis.line.x = element_line(colour = "grey35", linewidth = 0.3),
-    axis.line.y = element_line(colour = "grey35", linewidth = 0.3),
-    axis.ticks  = element_line(colour = "grey35", linewidth = 0.3),
-    axis.text.x = element_text(size = AXIS_TEXT_SIZE, colour = "grey20"),
-    axis.text.y = element_text(size = AXIS_TEXT_SIZE, colour = "grey20"),
-    axis.title.x = element_text(size = AXIS_TITLE_SIZE, margin = margin(t = 4)),
-    axis.title.y = element_blank(),
-    plot.background  = element_rect(fill = "white", colour = NA),
-    panel.background = element_rect(fill = "white", colour = NA),
-    plot.margin = margin(4, 6, 4, 6)
-  )
-
-tag_panel <- function(p, tag, x = 0.01, y = 0.99) {
-  ggdraw() +
-    draw_plot(p) +
-    draw_plot_label(
-      label = tag,
-      x = x,
-      y = y,
-      hjust = 0,
-      vjust = 1,
-      size = 11,
-      fontface = "bold"
-    )
-}
-
-# ============================================================
-# PANEL A — SAMPLE LEVEL
-# ============================================================
-
-plot_df_a <- vendors_gap_master %>%
-  filter(sample %in% c("global", "oecd", "non_oecd", "water_cooled", "AMRs")) %>%
-  transmute(
-    sample,
-    vendor_p10 = as.numeric(vendor_p10),
-    vendor_p50 = as.numeric(vendor_p50),
-    vendor_p90 = as.numeric(vendor_p90),
-    bas_p10    = vendor_p10 + as.numeric(bas_gap_p10),
-    bas_p50    = vendor_p50 + as.numeric(bas_gap_p50),
-    bas_p90    = vendor_p90 + as.numeric(bas_gap_p90),
-    acc_p10    = vendor_p10 + as.numeric(acc_gap_p10),
-    acc_p50    = vendor_p50 + as.numeric(acc_gap_p50),
-    acc_p90    = vendor_p90 + as.numeric(acc_gap_p90)
-  ) %>%
-  mutate(
-    sample_label = recode(
-      sample,
-      "global"       = "Global",
-      "oecd"         = "OECD designs",
-      "non_oecd"     = "Non-OECD designs",
-      "water_cooled" = "Water-cooled designs",
-      "AMRs"         = "Advanced modular reactors"
-    ),
-    y_mid = c(
-      "Global"                    = 5,
-      "OECD designs"              = 4,
-      "Non-OECD designs"          = 3,
-      "Water-cooled designs"      = 2,
-      "Advanced modular reactors" = 1
-    )[sample_label] |> unname(),
-    y_bas = y_mid + 0.22,
-    y_acc = y_mid - 0.22
-  ) %>%
-  arrange(desc(y_mid))
-
-p_a_core <- ggplot(plot_df_a) +
-  geom_segment(
-    aes(x = vendor_p10, xend = vendor_p90, y = y_mid, yend = y_mid),
-    linewidth = 0.7,
-    colour = "black",
-    lineend = "butt"
-  ) +
-  geom_segment(
-    aes(x = bas_p10, xend = bas_p90, y = y_bas, yend = y_bas),
-    linewidth = 0.8,
-    colour = "grey45",
-    lineend = "butt"
-  ) +
-  geom_segment(
-    aes(x = acc_p10, xend = acc_p90, y = y_acc, yend = y_acc),
-    linewidth = 0.8,
-    colour = "#228B22",
-    lineend = "butt"
-  ) +
-  geom_point(
-    aes(x = vendor_p50, y = y_mid),
-    shape = 4,
-    size = 2.8,
-    stroke = 0.9,
-    colour = "black"
-  ) +
-  geom_point(
-    aes(x = bas_p50, y = y_bas),
-    shape = 22,
-    size = 3.0,
-    stroke = 0.9,
-    fill = "white",
-    colour = "grey45"
-  ) +
-  geom_point(
-    aes(x = acc_p50, y = y_acc),
-    shape = 23,
-    size = 3.0,
-    stroke = 0.9,
-    fill = "white",
-    colour = "#228B22"
-  ) +
-  scale_x_continuous(
-    limits = X_LIMITS,
-    breaks = X_BREAKS,
-    expand = expansion(mult = c(0.01, 0.01))
-  ) +
-  scale_y_continuous(
-    breaks = 5:1,
-    labels = c(
-      "Global",
-      "OECD designs",
-      "Non-OECD designs",
-      "Water-cooled designs",
-      "Advanced modular reactors"
-    ),
-    limits = c(0.6, 5.35),
-    expand = expansion(mult = c(0, 0))
-  ) +
-  labs(
-    x = "Year",
-    y = NULL
-  ) +
-  base_theme +
-  theme(
-    plot.margin = margin(4, 12, 4, 6)
-  )
-
-# ============================================================
-# PANEL B — DEVELOPMENT PHASE LEVEL
-# ============================================================
-
-plot_df_b <- vendors_gap_master %>%
-  filter(sample %in% c("construction", "licensing", "detailed_design", "basic_design", "conceptual_design")) %>%
-  transmute(
-    sample,
-    trl,
-    vendor_p10 = as.numeric(vendor_p10),
-    vendor_p50 = as.numeric(vendor_p50),
-    vendor_p90 = as.numeric(vendor_p90),
-    bas_p10    = vendor_p10 + as.numeric(bas_gap_p10),
-    bas_p50    = vendor_p50 + as.numeric(bas_gap_p50),
-    bas_p90    = vendor_p90 + as.numeric(bas_gap_p90),
-    acc_p10    = vendor_p10 + as.numeric(acc_gap_p10),
-    acc_p50    = vendor_p50 + as.numeric(acc_gap_p50),
-    acc_p90    = vendor_p90 + as.numeric(acc_gap_p90)
-  ) %>%
-  mutate(
-    sample_label = recode(
-      sample,
-      "construction"      = "Construction",
-      "licensing"         = "Licensing",
-      "detailed_design"   = "Detailed design",
-      "basic_design"      = "Basic design",
-      "conceptual_design" = "Conceptual design"
-    ),
-    y_mid = c(
-      "Construction"      = 1,
-      "Licensing"         = 2,
-      "Detailed design"   = 3,
-      "Basic design"      = 4,
-      "Conceptual design" = 5
-    )[sample_label] |> unname(),
-    y_bas = y_mid + 0.25,
-    y_acc = y_mid - 0.25,
-    fill_group = sample_label
-  ) %>%
-  arrange(y_mid)
-
-fill_cols_b <- c(
+phase_cols <- c(
   "Conceptual design" = "#FDE0D2",
   "Basic design"      = "#F4A582",
   "Detailed design"   = "#D6604D",
@@ -310,236 +106,537 @@ fill_cols_b <- c(
   "Construction"      = "#92C5DE"
 )
 
-p_b_core <- ggplot(plot_df_b) +
-  geom_segment(
-    aes(x = vendor_p10, xend = vendor_p90, y = y_mid, yend = y_mid),
-    linewidth = 0.7,
-    colour = "black",
-    lineend = "butt"
-  ) +
-  geom_segment(
-    aes(x = bas_p10, xend = bas_p90, y = y_bas, yend = y_bas),
-    linewidth = 0.8,
-    colour = "grey45",
-    lineend = "butt"
-  ) +
-  geom_segment(
-    aes(x = acc_p10, xend = acc_p90, y = y_acc, yend = y_acc),
-    linewidth = 0.8,
-    colour = "#228B22",
-    lineend = "butt"
-  ) +
-  geom_point(
-    aes(x = vendor_p50, y = y_mid),
-    shape = 4,
-    size = 2.8,
-    stroke = 0.9,
-    colour = "black"
-  ) +
-  geom_point(
-    aes(x = bas_p50, y = y_bas, fill = fill_group),
-    shape = 22,
-    size = 3.0,
-    stroke = 0.9,
-    colour = "grey45"
-  ) +
-  geom_point(
-    aes(x = acc_p50, y = y_acc, fill = fill_group),
-    shape = 23,
-    size = 3.0,
-    stroke = 0.9,
-    colour = "#228B22"
-  ) +
-  scale_fill_manual(
-    values = fill_cols_b,
-    guide = "none"
-  ) +
-  scale_x_continuous(
-    limits = X_LIMITS,
-    breaks = X_BREAKS,
-    expand = expansion(mult = c(0.01, 0.01))
-  ) +
-  scale_y_continuous(
-    breaks = 1:5,
-    labels = c(
-      "Construction",
-      "Licensing",
-      "Detailed design",
-      "Basic design",
-      "Conceptual design"
-    ),
-    limits = c(0.5, 5.35),
-    expand = expansion(mult = c(0.01, 0.01))
-  ) +
-  labs(
-    x = "Year",
-    y = NULL
-  ) +
-  base_theme
-
-# ------------------------------------------------------------
-# ALIGN PANELS
-# ------------------------------------------------------------
-
-aligned_panels <- align_plots(
-  p_a_core,
-  p_b_core,
-  align = "hv",
-  axis = "tblr"
+phase_order <- c(
+  "Conceptual design",
+  "Basic design",
+  "Detailed design",
+  "Licensing",
+  "Construction"
 )
 
-p_a <- tag_panel(aligned_panels[[1]], "a", x = 0.01, y = 0.99)
-p_b <- tag_panel(aligned_panels[[2]], "b", x = 0.04, y = 0.99)
+COL_VENDOR <- "black"
+COL_BASE   <- "grey40"
+COL_ACC    <- "#228B22"
+
+# ------------------------------------------------------------
+# HELPERS
+# ------------------------------------------------------------
+
+clean_names_local <- function(x) {
+  x <- trimws(x)
+  x <- gsub("[[:space:][:punct:]]+", "_", x)
+  x <- gsub("_+", "_", x)
+  x <- gsub("^_|_$", "", x)
+  tolower(x)
+}
+
+normalise_phase <- function(x) {
+  key <- tolower(trimws(as.character(x)))
+  key <- gsub("[[:space:]-]+", "_", key)
+  
+  dplyr::case_when(
+    grepl("conceptual", key) ~ "Conceptual design",
+    grepl("basic", key)      ~ "Basic design",
+    grepl("detailed", key)   ~ "Detailed design",
+    grepl("licens", key)     ~ "Licensing",
+    grepl("construct", key)  ~ "Construction",
+    TRUE ~ as.character(x)
+  )
+}
+
+# ------------------------------------------------------------
+# THEME
+# ------------------------------------------------------------
+
+theme_base <- theme_classic(base_size = BASE_SIZE) +
+  theme(
+    axis.line.x = element_line(
+      colour = "grey35",
+      linewidth = 0.3
+    ),
+    axis.line.y = element_line(
+      colour = "grey35",
+      linewidth = 0.3
+    ),
+    axis.ticks = element_line(
+      colour = "grey35",
+      linewidth = 0.3
+    ),
+    axis.text.x = element_text(
+      size = AXIS_TEXT_SIZE,
+      colour = "grey20"
+    ),
+    axis.text.y = element_text(
+      size = AXIS_TEXT_SIZE,
+      colour = "grey20"
+    ),
+    axis.title.x = element_text(
+      size = AXIS_TITLE_SIZE,
+      colour = "grey10",
+      margin = margin(t = 3)
+    ),
+    axis.title.y = element_text(
+      size = AXIS_TITLE_SIZE,
+      colour = "grey10",
+      margin = margin(r = 4)
+    ),
+    plot.background = element_rect(
+      fill = "white",
+      colour = NA
+    ),
+    panel.background = element_rect(
+      fill = "white",
+      colour = NA
+    ),
+    legend.background = element_rect(
+      fill = "white",
+      colour = NA
+    ),
+    legend.box.background = element_rect(
+      fill = "white",
+      colour = NA
+    ),
+    plot.margin = margin(3, 2, 2, 2)
+  )
+
+# ============================================================
+# READ DATA
+# ============================================================
+
+kang_sample_32 <- readxl::read_excel(FILE_IN)
+
+names(kang_sample_32) <- clean_names_local(names(kang_sample_32))
+
+required_cols <- c(
+  "phase",
+  "trl",
+  "vendor_target",
+  "baseline_median",
+  "accelerated_median"
+)
+
+missing_cols <- required_cols[!required_cols %in% names(kang_sample_32)]
+
+if (length(missing_cols) > 0) {
+  stop(
+    "Missing required columns in Extended Data Fig. 3 source workbook:\n",
+    paste(missing_cols, collapse = "\n"),
+    "\n\nAvailable columns are:\n",
+    paste(names(kang_sample_32), collapse = "\n")
+  )
+}
+
+kang_sample_32 <- kang_sample_32 %>%
+  mutate(
+    Phase = normalise_phase(phase),
+    TRL = as.numeric(trl),
+    vendor_target = as.numeric(vendor_target),
+    baseline_median = as.numeric(baseline_median),
+    accelerated_median = as.numeric(accelerated_median)
+  ) %>%
+  filter(
+    !is.na(TRL),
+    !is.na(Phase),
+    Phase %in% phase_order
+  ) %>%
+  mutate(
+    Phase = factor(
+      Phase,
+      levels = phase_order
+    )
+  )
+
+# ============================================================
+# AXIS LIMITS AND SUMMARY VALUES
+# ============================================================
+
+x_min_BC <- 2026
+x_max_BC <- 2051.2
+x_breaks_BC <- c(2030, 2035, 2040, 2045, 2050)
+
+x_min_A <- floor(
+  min(kang_sample_32$vendor_target, na.rm = TRUE)
+)
+
+x_max_A <- 2036.6
+
+x_breaks_A <- seq(
+  x_min_A,
+  2036,
+  by = 2
+)
+
+med_vendor <- median(
+  kang_sample_32$vendor_target,
+  na.rm = TRUE
+)
+
+med_base <- median(
+  kang_sample_32$baseline_median,
+  na.rm = TRUE
+)
+
+med_acc <- median(
+  kang_sample_32$accelerated_median,
+  na.rm = TRUE
+)
+
+q1_vendor <- 2029.95
+q3_vendor <- 2033.25
+
+jit <- position_jitter(
+  width = 0.10,
+  height = 0.05,
+  seed = 42
+)
+
+# ============================================================
+# PANEL A — VENDOR TARGET YEAR VS TRL
+# ============================================================
+
+p_a <- ggplot(
+  filter(kang_sample_32, !is.na(vendor_target)),
+  aes(
+    x = vendor_target,
+    y = TRL,
+    fill = Phase
+  )
+) +
+  geom_vline(
+    xintercept = q1_vendor,
+    linetype = "solid",
+    linewidth = 0.35,
+    colour = COL_VENDOR,
+    alpha = 0.9
+  ) +
+  geom_vline(
+    xintercept = q3_vendor,
+    linetype = "solid",
+    linewidth = 0.35,
+    colour = COL_VENDOR,
+    alpha = 0.9
+  ) +
+  geom_vline(
+    xintercept = med_vendor,
+    linetype = "dashed",
+    linewidth = 0.7,
+    colour = COL_VENDOR
+  ) +
+  geom_point(
+    shape = 21,
+    size = 3.7,
+    stroke = 0.3,
+    colour = "grey30",
+    alpha = 0.95,
+    position = jit
+  ) +
+  scale_fill_manual(
+    values = phase_cols,
+    breaks = phase_order,
+    drop = FALSE
+  ) +
+  scale_y_continuous(
+    breaks = 1:6,
+    limits = c(0.92, 6.18),
+    expand = c(0, 0)
+  ) +
+  scale_x_continuous(
+    limits = c(x_min_A, x_max_A),
+    breaks = x_breaks_A,
+    expand = expansion(mult = c(0.005, 0.005))
+  ) +
+  coord_cartesian(
+    clip = "off"
+  ) +
+  labs(
+    x = "Vendor target year",
+    y = "Technology readiness level (TRL)"
+  ) +
+  theme_base +
+  theme(
+    legend.position = "none"
+  )
+
+p_a <- ggdraw(p_a) +
+  draw_plot_label(
+    label = "a",
+    x = 0.01,
+    y = 0.99,
+    hjust = 0,
+    vjust = 1,
+    size = PANEL_TAG_SIZE,
+    fontface = "bold"
+  )
+
+# ============================================================
+# PANEL B — BASELINE P50 FOAK DEPLOYMENT YEAR VS TRL
+# ============================================================
+
+p_b <- ggplot(
+  filter(kang_sample_32, !is.na(baseline_median)),
+  aes(
+    x = baseline_median,
+    y = TRL,
+    fill = Phase
+  )
+) +
+  geom_vline(
+    xintercept = med_vendor,
+    linetype = "dashed",
+    linewidth = 0.7,
+    colour = COL_VENDOR
+  ) +
+  geom_vline(
+    xintercept = med_base,
+    linetype = "dashed",
+    linewidth = 0.7,
+    colour = COL_BASE
+  ) +
+  geom_point(
+    shape = 21,
+    size = 3.7,
+    stroke = 0.3,
+    colour = "grey30",
+    alpha = 0.95,
+    position = jit
+  ) +
+  scale_fill_manual(
+    values = phase_cols,
+    breaks = phase_order,
+    drop = FALSE
+  ) +
+  scale_y_continuous(
+    breaks = 1:6,
+    limits = c(0.92, 6.18),
+    expand = c(0, 0)
+  ) +
+  scale_x_continuous(
+    limits = c(x_min_BC, x_max_BC),
+    breaks = x_breaks_BC,
+    labels = c("2030", "2035", "2040", "2045", "2050"),
+    expand = expansion(add = c(0.10, 0.65))
+  ) +
+  coord_cartesian(
+    clip = "off"
+  ) +
+  labs(
+    x = "Baseline P50 FOAK deployment",
+    y = "Technology readiness level (TRL)"
+  ) +
+  theme_base +
+  theme(
+    legend.position = "none"
+  )
+
+p_b <- ggdraw(p_b) +
+  draw_plot_label(
+    label = "b",
+    x = 0.01,
+    y = 0.99,
+    hjust = 0,
+    vjust = 1,
+    size = PANEL_TAG_SIZE,
+    fontface = "bold"
+  )
+
+# ============================================================
+# PANEL C — ACCELERATED P50 FOAK DEPLOYMENT YEAR VS TRL
+# ============================================================
+
+p_c <- ggplot(
+  filter(kang_sample_32, !is.na(accelerated_median)),
+  aes(
+    x = accelerated_median,
+    y = TRL,
+    fill = Phase
+  )
+) +
+  geom_vline(
+    xintercept = med_vendor,
+    linetype = "dashed",
+    linewidth = 0.7,
+    colour = COL_VENDOR
+  ) +
+  geom_vline(
+    xintercept = med_acc,
+    linetype = "dashed",
+    linewidth = 0.7,
+    colour = COL_ACC
+  ) +
+  geom_point(
+    shape = 21,
+    size = 3.7,
+    stroke = 0.3,
+    colour = "grey30",
+    alpha = 0.95,
+    position = jit
+  ) +
+  scale_fill_manual(
+    values = phase_cols,
+    breaks = phase_order,
+    drop = FALSE
+  ) +
+  scale_y_continuous(
+    breaks = 1:6,
+    limits = c(0.92, 6.18),
+    expand = c(0, 0)
+  ) +
+  scale_x_continuous(
+    limits = c(x_min_BC, x_max_BC),
+    breaks = x_breaks_BC,
+    labels = c("2030", "2035", "2040", "2045", "2050"),
+    expand = expansion(add = c(0.10, 0.65))
+  ) +
+  coord_cartesian(
+    clip = "off"
+  ) +
+  labs(
+    x = "Accelerated P50 FOAK deployment",
+    y = "Technology readiness level (TRL)"
+  ) +
+  theme_base +
+  theme(
+    legend.position = "none"
+  )
+
+p_c <- ggdraw(p_c) +
+  draw_plot_label(
+    label = "c",
+    x = 0.01,
+    y = 0.99,
+    hjust = 0,
+    vjust = 1,
+    size = PANEL_TAG_SIZE,
+    fontface = "bold"
+  )
 
 # ============================================================
 # SHARED LEGEND
 # ============================================================
 
-y_leg <- 0.65
-
-legend_plot <- ggplot() +
-  coord_cartesian(
-    xlim = c(0, 1),
-    ylim = c(0, 1),
-    clip = "off"
+legend_plot <- ggplot(
+  kang_sample_32,
+  aes(
+    x = vendor_target,
+    y = TRL,
+    fill = Phase
+  )
+) +
+  geom_point(
+    shape = 21,
+    size = 4.0,
+    stroke = 0.3,
+    colour = "grey30"
   ) +
-  annotate(
-    "text",
-    x = 0.13, y = y_leg,
-    label = "Vendor target",
-    hjust = 0, vjust = 0.5,
-    size = LEGEND_TITLE_SIZE
+  scale_fill_manual(
+    values = phase_cols,
+    breaks = phase_order,
+    drop = FALSE
   ) +
-  annotate(
-    "segment",
-    x = 0.24, xend = 0.30,
-    y = y_leg, yend = y_leg,
-    linewidth = 0.7,
-    colour = "black"
+  guides(
+    fill = guide_legend(
+      title = "Phase",
+      nrow = 1,
+      byrow = TRUE,
+      override.aes = list(
+        shape = 21,
+        size = 4.2,
+        alpha = 1,
+        colour = "grey30"
+      )
+    )
   ) +
-  annotate(
-    "point",
-    x = 0.27, y = y_leg,
-    shape = 4,
-    size = 2.8,
-    stroke = 0.9,
-    colour = "black"
-  ) +
-  annotate(
-    "text",
-    x = 0.32, y = y_leg,
-    label = "Median vendor FOAK target\n(P10–P90 interval)",
-    hjust = 0, vjust = 0.5,
-    lineheight = 0.9,
-    size = LEGEND_TEXT_SIZE
-  ) +
-  annotate(
-    "text",
-    x = 0.50, y = y_leg,
-    label = "Scenario",
-    hjust = 0, vjust = 0.5,
-    size = LEGEND_TITLE_SIZE
-  ) +
-  annotate(
-    "segment",
-    x = 0.57, xend = 0.63,
-    y = y_leg, yend = y_leg,
-    linewidth = 0.8,
-    colour = "grey45"
-  ) +
-  annotate(
-    "point",
-    x = 0.60, y = y_leg,
-    shape = 22,
-    size = 3.0,
-    stroke = 0.9,
-    fill = "white",
-    colour = "grey45"
-  ) +
-  annotate(
-    "text",
-    x = 0.65, y = y_leg,
-    label = "Baseline median\n(P10–P90 interval)",
-    hjust = 0, vjust = 0.5,
-    lineheight = 0.9,
-    size = LEGEND_TEXT_SIZE
-  ) +
-  annotate(
-    "segment",
-    x = 0.77, xend = 0.83,
-    y = y_leg, yend = y_leg,
-    linewidth = 0.8,
-    colour = "#228B22"
-  ) +
-  annotate(
-    "point",
-    x = 0.80, y = y_leg,
-    shape = 23,
-    size = 3.0,
-    stroke = 0.9,
-    fill = "white",
-    colour = "#228B22"
-  ) +
-  annotate(
-    "text",
-    x = 0.85, y = y_leg,
-    label = "Accelerated median\n(P10–P90 interval)",
-    hjust = 0, vjust = 0.5,
-    lineheight = 0.9,
-    size = LEGEND_TEXT_SIZE
-  ) +
-  theme_void(base_size = BASE_SIZE) +
+  theme_void() +
   theme(
-    plot.margin = margin(0, 2, 0, 2),
-    plot.background = element_rect(fill = "white", colour = NA),
-    panel.background = element_rect(fill = "white", colour = NA)
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    legend.box = "horizontal",
+    legend.justification = "center",
+    legend.title = element_text(
+      size = LEGEND_TITLE_SIZE
+    ),
+    legend.text = element_text(
+      size = LEGEND_TEXT_SIZE
+    ),
+    legend.key.width = unit(0.88, "cm"),
+    legend.key.height = unit(0.44, "cm"),
+    legend.spacing.x = unit(0.14, "cm"),
+    legend.spacing.y = unit(0.02, "cm"),
+    legend.box.spacing = unit(0.03, "cm"),
+    legend.margin = margin(0, 0, 0, 0),
+    plot.background = element_rect(
+      fill = "white",
+      colour = NA
+    ),
+    panel.background = element_rect(
+      fill = "white",
+      colour = NA
+    ),
+    legend.background = element_rect(
+      fill = "white",
+      colour = NA
+    )
   )
 
+legend_shared <- cowplot::get_legend(legend_plot)
+
 # ============================================================
-# COMBINE
+# COMBINE PANELS
 # ============================================================
 
-top_row <- plot_grid(
+aligned_panels <- align_plots(
   p_a,
   p_b,
-  ncol = 2,
-  rel_widths = c(1, 1),
-  align = "h",
-  axis = "tb"
+  p_c,
+  align = "v",
+  axis = "l"
 )
 
-combined_plot <- plot_grid(
-  top_row,
-  legend_plot,
+panel_row <- plot_grid(
+  aligned_panels[[1]],
+  aligned_panels[[2]],
+  aligned_panels[[3]],
+  nrow = 1,
+  rel_widths = c(1, 1, 1),
+  greedy = TRUE
+)
+
+final_plot <- plot_grid(
+  panel_row,
+  legend_shared,
   ncol = 1,
   rel_heights = c(1, 0.10)
 )
 
-print(combined_plot)
+print(final_plot)
 
 # ============================================================
-# SAVE EXTENDED DATA FIGURE 4
+# SAVE EXTENDED DATA FIGURE 3
 # ============================================================
 
 ggsave(
-  filename = file.path(OUT_DIR, "edfig04_ambition_gap.pdf"),
-  plot = combined_plot,
-  width = SAVE_W_MM,
-  height = SAVE_H_MM,
-  units = "mm",
-  dpi = SAVE_DPI,
-  device = cairo_pdf,
-  bg = "white"
-)
-
-ggsave(
-  filename = file.path(OUT_DIR, "edfig04_ambition_gap.png"),
-  plot = combined_plot,
-  width = SAVE_W_MM,
-  height = SAVE_H_MM,
-  units = "mm",
+  filename = file.path(OUT_DIR, paste0(FILE_STUB, ".png")),
+  plot = final_plot,
+  width = SAVE_W_IN,
+  height = SAVE_H_IN,
+  units = "in",
   dpi = SAVE_DPI,
   bg = "white"
 )
 
-combined_plot
+ggsave(
+  filename = file.path(OUT_DIR, paste0(FILE_STUB, ".pdf")),
+  plot = final_plot,
+  width = SAVE_W_IN,
+  height = SAVE_H_IN,
+  units = "in",
+  bg = "white",
+  useDingbats = FALSE
+)
+
+saveRDS(
+  final_plot,
+  file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
+)
+
+final_plot

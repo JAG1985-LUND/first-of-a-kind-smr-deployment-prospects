@@ -4,17 +4,13 @@
 # Reproduces Extended Data Fig. 4: gaps between vendor targets and modelled
 # FOAK deployment timelines.
 #
-# Panel a compares vendor FOAK targets with modelled FOAK deployment timelines
-# for the global sample, OECD designs, non-OECD designs, water-cooled designs
-# and advanced modular reactors. Panel b compares vendor FOAK targets with
-# modelled FOAK deployment timelines by current development phase.
-#
 # Required input:
-# edfig04_source_data_ambition_gap.xlsx
+# data/Extended_Data/edfig04_source_data_ambition_gap.xlsx
 #
 # Outputs:
-# edfig04_ambition_gap.png
-# edfig04_ambition_gap.pdf
+# outputs/Extended_Data/Figure_04/edfig04_ambition_gap.png
+# outputs/Extended_Data/Figure_04/edfig04_ambition_gap.pdf
+# outputs/Extended_Data/Figure_04/edfig04_ambition_gap.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -36,8 +32,46 @@ graphics.off()
 # PATHS
 # ------------------------------------------------------------
 
-FILE_IN <- "edfig04_source_data_ambition_gap.xlsx"
-OUT_DIR <- "."
+SOURCE_FILE <- file.path(
+  "data",
+  "Extended_Data",
+  "edfig04_source_data_ambition_gap.xlsx"
+)
+
+find_repo_root <- function(start_dir = getwd(), target_file = SOURCE_FILE) {
+  current <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    if (file.exists(file.path(current, target_file))) {
+      return(current)
+    }
+    
+    parent <- dirname(current)
+    
+    if (identical(parent, current)) {
+      stop(
+        "Could not locate repository root.\n",
+        "Expected to find: ", target_file, "\n",
+        "Start directory was: ",
+        normalizePath(start_dir, winslash = "/", mustWork = TRUE),
+        "\n\nRun this script from inside the GitHub repository, or set the working directory to the repository root."
+      )
+    }
+    
+    current <- parent
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+FILE_IN <- file.path(ROOT_DIR, SOURCE_FILE)
+OUT_DIR <- file.path(ROOT_DIR, "outputs", "Extended_Data", "Figure_04")
+
+dir.create(
+  OUT_DIR,
+  recursive = TRUE,
+  showWarnings = FALSE
+)
 
 if (!file.exists(FILE_IN)) {
   stop("Input file not found: ", FILE_IN)
@@ -50,6 +84,8 @@ if (!file.exists(FILE_IN)) {
 SAVE_W_MM <- 180
 SAVE_H_MM <- 112
 SAVE_DPI  <- 600
+
+FILE_STUB <- "edfig04_ambition_gap"
 
 # ------------------------------------------------------------
 # TYPOGRAPHY
@@ -508,24 +544,29 @@ print(combined_plot)
 # ============================================================
 
 ggsave(
-  filename = file.path(OUT_DIR, "edfig04_ambition_gap.pdf"),
+  filename = file.path(OUT_DIR, paste0(FILE_STUB, ".pdf")),
   plot = combined_plot,
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
   dpi = SAVE_DPI,
-  device = cairo_pdf,
+  device = grDevices::cairo_pdf,
   bg = "white"
 )
 
 ggsave(
-  filename = file.path(OUT_DIR, "edfig04_ambition_gap.png"),
+  filename = file.path(OUT_DIR, paste0(FILE_STUB, ".png")),
   plot = combined_plot,
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
   dpi = SAVE_DPI,
   bg = "white"
+)
+
+saveRDS(
+  combined_plot,
+  file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
 )
 
 combined_plot
