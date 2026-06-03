@@ -12,11 +12,12 @@
 # scenarios, respectively. The vertical dashed line marks 2050.
 #
 # Required input:
-# fig03_source_data_vendor_targets.xlsx
+# data/Main_Figures/fig03_source_data_vendor_targets.xlsx
 #
 # Outputs:
-# fig03_vendor_targets.png
-# fig03_vendor_targets.pdf
+# outputs/Figure_03/fig03_vendor_targets.png
+# outputs/Figure_03/fig03_vendor_targets.pdf
+# outputs/Figure_03/fig03_vendor_targets.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -39,8 +40,37 @@ graphics.off()
 # PATHS
 # ----------------------------
 
-FILE <- "fig03_source_data_vendor_targets.xlsx"
-FIG3_ROOT <- "."
+SOURCE_FILE <- file.path("data", "Main_Figures", "fig03_source_data_vendor_targets.xlsx")
+
+find_repo_root <- function(start_dir = getwd(), target_file = SOURCE_FILE) {
+  current <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    if (file.exists(file.path(current, target_file))) {
+      return(current)
+    }
+    
+    parent <- dirname(current)
+    
+    if (identical(parent, current)) {
+      stop(
+        "Could not locate repository root.\n",
+        "Expected to find: ", target_file, "\n",
+        "Start directory was: ", normalizePath(start_dir, winslash = "/", mustWork = TRUE), "\n\n",
+        "Run this script from inside the GitHub repository, or set the working directory to the repository root."
+      )
+    }
+    
+    current <- parent
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+FILE <- file.path(ROOT_DIR, SOURCE_FILE)
+FIG3_ROOT <- file.path(ROOT_DIR, "outputs", "Figure_03")
+
+dir.create(FIG3_ROOT, recursive = TRUE, showWarnings = FALSE)
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
@@ -133,7 +163,7 @@ has_content <- function(x) {
 # LOAD DATA
 # ----------------------------
 
-df0 <- read_excel(FILE)
+df0 <- readxl::read_excel(FILE)
 
 names(df0) <- gsub("\\s+", "_", names(df0))
 
@@ -418,237 +448,72 @@ make_bottom_legend <- function() {
       panel.background = element_rect(fill = "white", colour = NA)
     ) +
     
-    annotate(
-      "text",
-      x = x_title,
-      y = y_phase,
-      label = "Phase",
-      hjust = 0,
-      vjust = 0.5,
-      size = 2.25,
-      colour = "black"
-    ) +
-    annotate(
-      "segment",
-      x = phase_x[1],
-      xend = phase_x[1] + key_len,
-      y = y_phase,
-      yend = y_phase,
-      linewidth = 2.0,
-      colour = PHASE_COLS["Conceptual design"],
-      lineend = "butt"
-    ) +
-    annotate(
-      "text",
-      x = phase_txt[1],
-      y = y_phase,
-      label = "Conceptual design",
-      hjust = 0,
-      vjust = 0.5,
-      size = 2.05,
-      colour = "black"
-    ) +
+    annotate("text", x = x_title, y = y_phase, label = "Phase",
+             hjust = 0, vjust = 0.5, size = 2.25, colour = "black") +
+    annotate("segment", x = phase_x[1], xend = phase_x[1] + key_len,
+             y = y_phase, yend = y_phase, linewidth = 2.0,
+             colour = PHASE_COLS["Conceptual design"], lineend = "butt") +
+    annotate("text", x = phase_txt[1], y = y_phase, label = "Conceptual design",
+             hjust = 0, vjust = 0.5, size = 2.05, colour = "black") +
     
-    annotate(
-      "segment",
-      x = phase_x[2],
-      xend = phase_x[2] + key_len,
-      y = y_phase,
-      yend = y_phase,
-      linewidth = 2.0,
-      colour = PHASE_COLS["Basic design"],
-      lineend = "butt"
-    ) +
-    annotate(
-      "text",
-      x = phase_txt[2],
-      y = y_phase,
-      label = "Basic design",
-      hjust = 0,
-      vjust = 0.5,
-      size = 2.05,
-      colour = "black"
-    ) +
+    annotate("segment", x = phase_x[2], xend = phase_x[2] + key_len,
+             y = y_phase, yend = y_phase, linewidth = 2.0,
+             colour = PHASE_COLS["Basic design"], lineend = "butt") +
+    annotate("text", x = phase_txt[2], y = y_phase, label = "Basic design",
+             hjust = 0, vjust = 0.5, size = 2.05, colour = "black") +
     
-    annotate(
-      "segment",
-      x = phase_x[3],
-      xend = phase_x[3] + key_len,
-      y = y_phase,
-      yend = y_phase,
-      linewidth = 2.0,
-      colour = PHASE_COLS["Detailed design"],
-      lineend = "butt"
-    ) +
-    annotate(
-      "text",
-      x = phase_txt[3],
-      y = y_phase,
-      label = "Detailed design",
-      hjust = 0,
-      vjust = 0.5,
-      size = 2.05,
-      colour = "black"
-    ) +
+    annotate("segment", x = phase_x[3], xend = phase_x[3] + key_len,
+             y = y_phase, yend = y_phase, linewidth = 2.0,
+             colour = PHASE_COLS["Detailed design"], lineend = "butt") +
+    annotate("text", x = phase_txt[3], y = y_phase, label = "Detailed design",
+             hjust = 0, vjust = 0.5, size = 2.05, colour = "black") +
     
-    annotate(
-      "segment",
-      x = phase_x[4],
-      xend = phase_x[4] + key_len,
-      y = y_phase,
-      yend = y_phase,
-      linewidth = 2.0,
-      colour = PHASE_COLS["Licensing"],
-      lineend = "butt"
-    ) +
-    annotate(
-      "text",
-      x = phase_txt[4],
-      y = y_phase,
-      label = "Licensing",
-      hjust = 0,
-      vjust = 0.5,
-      size = 2.05,
-      colour = "black"
-    ) +
+    annotate("segment", x = phase_x[4], xend = phase_x[4] + key_len,
+             y = y_phase, yend = y_phase, linewidth = 2.0,
+             colour = PHASE_COLS["Licensing"], lineend = "butt") +
+    annotate("text", x = phase_txt[4], y = y_phase, label = "Licensing",
+             hjust = 0, vjust = 0.5, size = 2.05, colour = "black") +
     
-    annotate(
-      "segment",
-      x = phase_x[5],
-      xend = phase_x[5] + key_len,
-      y = y_phase,
-      yend = y_phase,
-      linewidth = 2.0,
-      colour = PHASE_COLS["Construction"],
-      lineend = "butt"
-    ) +
-    annotate(
-      "text",
-      x = phase_txt[5],
-      y = y_phase,
-      label = "Construction",
-      hjust = 0,
-      vjust = 0.5,
-      size = 2.05,
-      colour = "black"
-    ) +
+    annotate("segment", x = phase_x[5], xend = phase_x[5] + key_len,
+             y = y_phase, yend = y_phase, linewidth = 2.0,
+             colour = PHASE_COLS["Construction"], lineend = "butt") +
+    annotate("text", x = phase_txt[5], y = y_phase, label = "Construction",
+             hjust = 0, vjust = 0.5, size = 2.05, colour = "black") +
     
-    annotate(
-      "text",
-      x = x_title,
-      y = y_mile,
-      label = "Milestones",
-      hjust = 0,
-      vjust = 0.5,
-      size = 2.25,
-      colour = "black"
-    ) +
-    annotate(
-      "point",
-      x = x_sym_1,
-      y = y_mile,
-      colour = COL_START,
-      size = 2.8
-    ) +
-    annotate(
-      "text",
-      x = x_txt_1,
-      y = y_mile,
-      label = "Conceptual design start year",
-      hjust = 0,
-      vjust = 0.5,
-      size = 2.25,
-      colour = "black"
-    ) +
-    annotate(
-      "point",
-      x = x_sym_2,
-      y = y_mile,
-      shape = 4,
-      stroke = 0.90,
-      size = 4.2,
-      colour = "black"
-    ) +
-    annotate(
-      "text",
-      x = x_txt_2,
-      y = y_mile,
-      label = "Vendor FOAK target",
-      hjust = 0,
-      vjust = 0.5,
-      size = 2.25,
-      colour = "black"
-    ) +
+    annotate("text", x = x_title, y = y_mile, label = "Milestones",
+             hjust = 0, vjust = 0.5, size = 2.25, colour = "black") +
+    annotate("point", x = x_sym_1, y = y_mile,
+             colour = COL_START, size = 2.8) +
+    annotate("text", x = x_txt_1, y = y_mile,
+             label = "Conceptual design start year",
+             hjust = 0, vjust = 0.5, size = 2.25, colour = "black") +
+    annotate("point", x = x_sym_2, y = y_mile,
+             shape = 4, stroke = 0.90, size = 4.2, colour = "black") +
+    annotate("text", x = x_txt_2, y = y_mile,
+             label = "Vendor FOAK target",
+             hjust = 0, vjust = 0.5, size = 2.25, colour = "black") +
     
-    annotate(
-      "text",
-      x = x_title,
-      y = y_scen,
-      label = "Scenario",
-      hjust = 0,
-      vjust = 0.5,
-      size = 2.25,
-      colour = "black"
-    ) +
-    annotate(
-      "segment",
-      x = x_sym_1 - 0.025,
-      xend = x_sym_1 + 0.030,
-      y = y_scen,
-      yend = y_scen,
-      linewidth = 1.0,
-      colour = COL_BASE,
-      lineend = "butt"
-    ) +
-    annotate(
-      "point",
-      x = x_sym_1,
-      y = y_scen,
-      shape = SH_BASE,
-      size = 2.7,
-      colour = COL_BASE
-    ) +
-    annotate(
-      "text",
-      x = x_txt_1,
-      y = y_scen,
-      label = "Baseline FOAK median\n(P10-P90 interval)",
-      hjust = 0,
-      vjust = 0.5,
-      size = 2.25,
-      colour = "black",
-      lineheight = 0.92
-    ) +
+    annotate("text", x = x_title, y = y_scen, label = "Scenario",
+             hjust = 0, vjust = 0.5, size = 2.25, colour = "black") +
+    annotate("segment", x = x_sym_1 - 0.025, xend = x_sym_1 + 0.030,
+             y = y_scen, yend = y_scen, linewidth = 1.0,
+             colour = COL_BASE, lineend = "butt") +
+    annotate("point", x = x_sym_1, y = y_scen,
+             shape = SH_BASE, size = 2.7, colour = COL_BASE) +
+    annotate("text", x = x_txt_1, y = y_scen,
+             label = "Baseline FOAK median\n(P10-P90 interval)",
+             hjust = 0, vjust = 0.5, size = 2.25,
+             colour = "black", lineheight = 0.92) +
     
-    annotate(
-      "segment",
-      x = x_sym_2 - 0.025,
-      xend = x_sym_2 + 0.030,
-      y = y_scen,
-      yend = y_scen,
-      linewidth = 1.0,
-      colour = COL_ACC,
-      lineend = "butt"
-    ) +
-    annotate(
-      "point",
-      x = x_sym_2,
-      y = y_scen,
-      shape = SH_ACC,
-      size = 2.7,
-      colour = COL_ACC
-    ) +
-    annotate(
-      "text",
-      x = x_txt_2,
-      y = y_scen,
-      label = "Accelerated FOAK median\n(P10-P90 interval)",
-      hjust = 0,
-      vjust = 0.5,
-      size = 2.25,
-      colour = "black",
-      lineheight = 0.92
-    )
+    annotate("segment", x = x_sym_2 - 0.025, xend = x_sym_2 + 0.030,
+             y = y_scen, yend = y_scen, linewidth = 1.0,
+             colour = COL_ACC, lineend = "butt") +
+    annotate("point", x = x_sym_2, y = y_scen,
+             shape = SH_ACC, size = 2.7, colour = COL_ACC) +
+    annotate("text", x = x_txt_2, y = y_scen,
+             label = "Accelerated FOAK median\n(P10-P90 interval)",
+             hjust = 0, vjust = 0.5, size = 2.25,
+             colour = "black", lineheight = 0.92)
 }
 
 # ----------------------------
@@ -693,4 +558,11 @@ ggsave(
   useDingbats = FALSE
 )
 
+saveRDS(
+  final_fig,
+  file = file.path(FIG3_ROOT, paste0(OUT_BASE, ".rds"))
+)
+
 final_fig
+
+
