@@ -5,11 +5,12 @@
 # by reactor cooling type and OECD membership.
 #
 # Required input:
-# edfig02_source_data_historical_cooling_oecd_trajectories.xlsx
+# data/Extended_Data/edfig02_source_data_historical_cooling_oecd.xlsx
 #
 # Outputs:
-# edfig02_historical_cooling_oecd_trajectories.png
-# edfig02_historical_cooling_oecd_trajectories.pdf
+# outputs/Extended_Data/Figure_02/edfig02_historical_cooling_oecd_trajectories.png
+# outputs/Extended_Data/Figure_02/edfig02_historical_cooling_oecd_trajectories.pdf
+# outputs/Extended_Data/Figure_02/edfig02_historical_cooling_oecd_trajectories.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -33,8 +34,42 @@ graphics.off()
 # PATHS
 # ------------------------------------------------------------
 
-FILE <- "edfig02_source_data_historical_cooling_oecd_trajectories.xlsx"
-OUT_DIR <- "."
+SOURCE_FILE <- file.path(
+  "data",
+  "Extended_Data",
+  "edfig02_source_data_historical_cooling_oecd.xlsx"
+)
+
+find_repo_root <- function(start_dir = getwd(), target_file = SOURCE_FILE) {
+  current <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    if (file.exists(file.path(current, target_file))) {
+      return(current)
+    }
+    
+    parent <- dirname(current)
+    
+    if (identical(parent, current)) {
+      stop(
+        "Could not locate repository root.\n",
+        "Expected to find: ", target_file, "\n",
+        "Start directory was: ",
+        normalizePath(start_dir, winslash = "/", mustWork = TRUE),
+        "\n\nRun this script from inside the GitHub repository, or set the working directory to the repository root."
+      )
+    }
+    
+    current <- parent
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+FILE <- file.path(ROOT_DIR, SOURCE_FILE)
+OUT_DIR <- file.path(ROOT_DIR, "outputs", "Extended_Data", "Figure_02")
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 OUT_BASE <- "edfig02_historical_cooling_oecd_trajectories"
 
@@ -520,6 +555,11 @@ ggsave(
   units = "mm",
   bg = "white",
   useDingbats = FALSE
+)
+
+saveRDS(
+  fig,
+  file = file.path(OUT_DIR, paste0(OUT_BASE, ".rds"))
 )
 
 fig
