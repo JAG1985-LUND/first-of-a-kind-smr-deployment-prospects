@@ -11,11 +11,12 @@
 # vertical line marks 2035.
 #
 # Required input:
-# edfig08_source_data_project_progression_2050.xlsx
+# data/Extended_Data/edfig08_source_data_project_progression_2050.xlsx
 #
 # Outputs:
-# edfig08_project_progression_2050.png
-# edfig08_project_progression_2050.pdf
+# outputs/Extended_Data/Figure_08/edfig08_project_progression_2050.png
+# outputs/Extended_Data/Figure_08/edfig08_project_progression_2050.pdf
+# outputs/Extended_Data/Figure_08/edfig08_project_progression_2050.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -39,9 +40,42 @@ graphics.off()
 # PATHS
 # ------------------------------------------------------------
 
-FILE <- "edfig08_source_data_project_progression_2050.xlsx"
+SOURCE_FILE <- file.path(
+  "data",
+  "Extended_Data",
+  "edfig08_source_data_project_progression_2050.xlsx"
+)
 
-OUT_DIR <- "."
+find_repo_root <- function(start_dir = getwd(), target_file = SOURCE_FILE) {
+  current <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    if (file.exists(file.path(current, target_file))) {
+      return(current)
+    }
+    
+    parent <- dirname(current)
+    
+    if (identical(parent, current)) {
+      stop(
+        "Could not locate repository root.\n",
+        "Expected to find: ", target_file, "\n",
+        "Start directory was: ",
+        normalizePath(start_dir, winslash = "/", mustWork = TRUE),
+        "\n\nRun this script from inside the GitHub repository, or set the working directory to the repository root."
+      )
+    }
+    
+    current <- parent
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+FILE <- file.path(ROOT_DIR, SOURCE_FILE)
+OUT_DIR <- file.path(ROOT_DIR, "outputs", "Extended_Data", "Figure_08")
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
@@ -81,6 +115,8 @@ SH_BASE <- 17
 SH_ACC  <- 18
 
 MARG_IN <- margin(1, 4, 1, 4)
+
+FILE_STUB <- "edfig08_project_progression_2050"
 
 ops_names <- c(
   "HTR-PM",
@@ -137,11 +173,11 @@ clean_key <- function(x) {
 
 first_non_na <- function(x) {
   x <- x[!is.na(x)]
-
+  
   if (length(x) == 0) {
     return(NA_real_)
   }
-
+  
   x[1]
 }
 
@@ -156,6 +192,34 @@ names(df0) <- gsub(
   "_",
   names(df0)
 )
+
+required_cols <- c(
+  "SMR",
+  "Country",
+  "Phase",
+  "OECD",
+  "Region",
+  "Scenario",
+  "CD_Start",
+  "BD_Start",
+  "DD_Start",
+  "Lic_Start",
+  "Con_Start",
+  "P10",
+  "P50",
+  "P90"
+)
+
+missing_cols <- setdiff(required_cols, names(df0))
+
+if (length(missing_cols) > 0) {
+  stop(
+    "Missing required columns in Extended Data Fig. 8 source workbook:\n",
+    paste(missing_cols, collapse = "\n"),
+    "\n\nAvailable columns are:\n",
+    paste(names(df0), collapse = "\n")
+  )
+}
 
 ops_key <- clean_key(ops_names)
 
@@ -188,7 +252,7 @@ df0 <- df0 %>%
 # ------------------------------------------------------------
 
 make_panel <- function(df, fut_min, show_x) {
-
+  
   design_oper <- df %>%
     dplyr::group_by(design) %>%
     dplyr::summarise(
@@ -198,7 +262,7 @@ make_panel <- function(df, fut_min, show_x) {
       ),
       .groups = "drop"
     )
-
+  
   df_base <- df %>%
     dplyr::filter(Scenario == "Baseline") %>%
     dplyr::group_by(design) %>%
@@ -217,7 +281,7 @@ make_panel <- function(df, fut_min, show_x) {
       design_oper,
       by = "design"
     )
-
+  
   df_acc <- df %>%
     dplyr::filter(Scenario == "Accelerated") %>%
     dplyr::group_by(design) %>%
@@ -227,7 +291,7 @@ make_panel <- function(df, fut_min, show_x) {
       P90 = first_non_na(P90),
       .groups = "drop"
     )
-
+  
   y_levels <- df_base %>%
     dplyr::arrange(
       CD_Start,
@@ -236,7 +300,7 @@ make_panel <- function(df, fut_min, show_x) {
     ) %>%
     dplyr::pull(design) %>%
     rev()
-
+  
   df_base <- df_base %>%
     dplyr::mutate(
       design = factor(
@@ -244,7 +308,7 @@ make_panel <- function(df, fut_min, show_x) {
         levels = y_levels
       )
     )
-
+  
   df_acc <- df_acc %>%
     dplyr::mutate(
       design = factor(
@@ -252,7 +316,7 @@ make_panel <- function(df, fut_min, show_x) {
         levels = y_levels
       )
     )
-
+  
   df_long <- df_base %>%
     dplyr::select(
       design,
@@ -302,7 +366,7 @@ make_panel <- function(df, fut_min, show_x) {
         HIST_MIN
       )
     )
-
+  
   df_seg <- df_long %>%
     dplyr::mutate(
       end = ifelse(
@@ -321,7 +385,7 @@ make_panel <- function(df, fut_min, show_x) {
       )
     ) %>%
     dplyr::filter(end > start)
-
+  
   df_op <- df_base %>%
     dplyr::filter(is_operational) %>%
     dplyr::transmute(
@@ -347,7 +411,7 @@ make_panel <- function(df, fut_min, show_x) {
       )
     ) %>%
     dplyr::filter(end > start)
-
+  
   df_proj <- df_base %>%
     dplyr::filter(is_operational) %>%
     dplyr::transmute(
@@ -359,10 +423,10 @@ make_panel <- function(df, fut_min, show_x) {
         levels = names(PHASE_COLS)
       )
     )
-
+  
   df_base_nonop <- df_base %>%
     dplyr::filter(!is_operational)
-
+  
   df_acc_nonop <- df_acc %>%
     dplyr::left_join(
       dplyr::select(
@@ -373,7 +437,7 @@ make_panel <- function(df, fut_min, show_x) {
       by = "design"
     ) %>%
     dplyr::filter(!is_operational)
-
+  
   ggplot() +
     geom_segment(
       data = df_seg,
@@ -522,12 +586,12 @@ make_dev_block <- function(phases, y_step = 0.86) {
   n <- length(phases)
   ys <- rev(seq_len(n)) * y_step
   title_y <- max(ys) + 0.95
-
+  
   df_lines <- tibble(
     phase = phases,
     y = ys
   )
-
+  
   ggplot(df_lines) +
     annotate(
       "text",
@@ -584,16 +648,16 @@ make_scen_block <- function() {
     "Baseline FOAK median\n(P10–P90 interval)",
     "Accelerated FOAK median\n(P10–P90 interval)"
   )
-
+  
   df_scen <- tibble(
     label = labels,
     y = c(2.25, 0.95),
     col = c(COL_BASE, COL_ACC),
     pch = c(SH_BASE, SH_ACC)
   )
-
+  
   title_y <- 3.25
-
+  
   ggplot() +
     annotate(
       "text",
@@ -799,7 +863,7 @@ h_in <- 215 / 25.4
 ggsave(
   filename = file.path(
     OUT_DIR,
-    "edfig08_project_progression_2050.png"
+    paste0(FILE_STUB, ".png")
   ),
   plot = final_fig,
   width = w_in,
@@ -811,13 +875,21 @@ ggsave(
 ggsave(
   filename = file.path(
     OUT_DIR,
-    "edfig08_project_progression_2050.pdf"
+    paste0(FILE_STUB, ".pdf")
   ),
   plot = final_fig,
   width = w_in,
   height = h_in,
   bg = "white",
   useDingbats = FALSE
+)
+
+saveRDS(
+  final_fig,
+  file = file.path(
+    OUT_DIR,
+    paste0(FILE_STUB, ".rds")
+  )
 )
 
 final_fig
