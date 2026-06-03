@@ -5,14 +5,12 @@
 # start year of the conceptual design phase.
 #
 # Required input:
-# sfig10_source_data_cd_duration_regression.xlsx
+# data/Supplementary_Data/sfig10_source_data_cd_duration_regression.xlsx
 #
 # Outputs:
-# sfig10_cd_duration_regression.png
-# sfig10_cd_duration_regression.pdf
-
-rm(list = ls())
-graphics.off()
+# outputs/Supplementary_Figures/Figure_10/sfig10_cd_duration_regression.png
+# outputs/Supplementary_Figures/Figure_10/sfig10_cd_duration_regression.pdf
+# outputs/Supplementary_Figures/Figure_10/sfig10_cd_duration_regression.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -21,33 +19,96 @@ suppressPackageStartupMessages({
   library(grid)
 })
 
+rm(list = ls())
+graphics.off()
+
 # ============================================================
-# SUPPLEMENTARY FIGURE 10 — CD DURATION REGRESSION
+# SUPPLEMENTARY FIGURE 10
+# CD DURATION REGRESSION
 # Conceptual design duration versus conceptual-design start year
 # Empirical, Baseline and Accelerated samples
 # ============================================================
 
-# --------------------------
-# PATHS
-# --------------------------
+# ------------------------------------------------------------
+# FIND REPOSITORY ROOT
+# ------------------------------------------------------------
 
-FILE <- "sfig10_source_data_cd_duration_regression.xlsx"
-
-OUT_DIR <- "."
-
-OUT_BASE <- "sfig10_cd_duration_regression"
-
-if (!file.exists(FILE)) {
-  stop("Input file not found: ", FILE)
+find_repo_root <- function(start_dir = getwd()) {
+  current_dir <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    has_git     <- dir.exists(file.path(current_dir, ".git"))
+    has_data    <- dir.exists(file.path(current_dir, "data"))
+    has_scripts <- dir.exists(file.path(current_dir, "scripts"))
+    
+    if (has_git && has_data && has_scripts) {
+      return(current_dir)
+    }
+    
+    parent_dir <- dirname(current_dir)
+    
+    if (identical(parent_dir, current_dir)) {
+      stop(
+        "Repository root not found. Run this script from inside the ",
+        "first-of-a-kind-smr-deployment-prospects repository."
+      )
+    }
+    
+    current_dir <- parent_dir
+  }
 }
 
-# --------------------------
-# SETTINGS
-# --------------------------
+ROOT_DIR <- find_repo_root()
+
+# ------------------------------------------------------------
+# PATHS
+# ------------------------------------------------------------
+
+FILE_CANDIDATES <- c(
+  "sfig10_source_data_cd_duration_regression.xlsx",
+  "sfig10_cd_duration_regression.xlsx"
+)
+
+FILE_IN_CANDIDATES <- file.path(
+  ROOT_DIR,
+  "data",
+  "Supplementary_Data",
+  FILE_CANDIDATES
+)
+
+FILE_IN <- FILE_IN_CANDIDATES[file.exists(FILE_IN_CANDIDATES)][1]
+
+if (is.na(FILE_IN)) {
+  stop(
+    "Input file not found. Checked: ",
+    paste(FILE_IN_CANDIDATES, collapse = " | ")
+  )
+}
+
+FILE <- basename(FILE_IN)
+
+OUT_DIR <- file.path(
+  ROOT_DIR,
+  "outputs",
+  "Supplementary_Figures",
+  "Figure_10"
+)
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+
+# ------------------------------------------------------------
+# EXPORT SETTINGS
+# ------------------------------------------------------------
 
 SAVE_W_MM <- 180
 SAVE_H_MM <- 110
 SAVE_DPI  <- 600
+
+FILE_STUB <- "sfig10_cd_duration_regression"
+
+# ------------------------------------------------------------
+# SETTINGS
+# ------------------------------------------------------------
 
 axis_line_col <- "grey35"
 axis_line_lw  <- 0.3
@@ -56,9 +117,9 @@ col_emp  <- "black"
 col_base <- "grey45"
 col_acc  <- "forestgreen"
 
-# --------------------------
+# ------------------------------------------------------------
 # HELPERS
-# --------------------------
+# ------------------------------------------------------------
 
 clean_names_local <- function(x) {
   x <- trimws(x)
@@ -93,11 +154,12 @@ pick_col <- function(nms, exact = character(), patterns = character(), exclude =
   NA_character_
 }
 
-# --------------------------
+# ============================================================
 # LOAD DATA
-# --------------------------
+# ============================================================
 
-raw <- read_excel(FILE, sheet = 1)
+raw <- read_excel(FILE_IN, sheet = 1)
+
 names(raw) <- clean_names_local(names(raw))
 
 cd_col <- pick_col(
@@ -172,9 +234,9 @@ df <- raw %>%
   ) %>%
   filter(!is.na(CD_Start))
 
-# --------------------------
+# ============================================================
 # BUILD SAMPLES
-# --------------------------
+# ============================================================
 
 empirical_df <- df %>%
   filter(!is.na(Empirical_duration)) %>%
@@ -231,9 +293,9 @@ point_df <- df %>%
   ) %>%
   filter(!is.na(Point_group), !is.na(Duration))
 
-# --------------------------
+# ============================================================
 # PLOT
-# --------------------------
+# ============================================================
 
 p <- ggplot() +
   geom_smooth(
@@ -329,12 +391,12 @@ p <- ggplot() +
 
 print(p)
 
-# --------------------------
-# EXPORT
-# --------------------------
+# ============================================================
+# SAVE SUPPLEMENTARY FIGURE 10
+# ============================================================
 
 ggsave(
-  filename = file.path(OUT_DIR, paste0(OUT_BASE, ".png")),
+  filename = file.path(OUT_DIR, paste0(FILE_STUB, ".png")),
   plot = p,
   width = SAVE_W_MM,
   height = SAVE_H_MM,
@@ -344,13 +406,18 @@ ggsave(
 )
 
 ggsave(
-  filename = file.path(OUT_DIR, paste0(OUT_BASE, ".pdf")),
+  filename = file.path(OUT_DIR, paste0(FILE_STUB, ".pdf")),
   plot = p,
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
-  device = cairo_pdf,
+  device = grDevices::cairo_pdf,
   bg = "white"
+)
+
+saveRDS(
+  object = p,
+  file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
 )
 
 p
