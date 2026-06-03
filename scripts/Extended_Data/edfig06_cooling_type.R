@@ -8,11 +8,12 @@
 # Panel b shows median cumulative deployment by cooling type under the Accelerated scenario.
 #
 # Required input:
-# edfig06_source_data_cooling_type_2050.xlsx
+# data/Extended_Data/edfig06_source_data_cooling_type_2050.xlsx
 #
 # Outputs:
-# edfig06_cooling_type.png
-# edfig06_cooling_type.pdf
+# outputs/Extended_Data/Figure_06/edfig06_cooling_type.png
+# outputs/Extended_Data/Figure_06/edfig06_cooling_type.pdf
+# outputs/Extended_Data/Figure_06/edfig06_cooling_type.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -33,11 +34,45 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# FILE PATHS
+# PATHS
 # ------------------------------------------------------------
 
-FILE <- "edfig06_source_data_cooling_type_2050.xlsx"
-OUT_DIR <- "."
+SOURCE_FILE <- file.path(
+  "data",
+  "Extended_Data",
+  "edfig06_source_data_cooling_type_2050.xlsx"
+)
+
+find_repo_root <- function(start_dir = getwd(), target_file = SOURCE_FILE) {
+  current <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    if (file.exists(file.path(current, target_file))) {
+      return(current)
+    }
+    
+    parent <- dirname(current)
+    
+    if (identical(parent, current)) {
+      stop(
+        "Could not locate repository root.\n",
+        "Expected to find: ", target_file, "\n",
+        "Start directory was: ",
+        normalizePath(start_dir, winslash = "/", mustWork = TRUE),
+        "\n\nRun this script from inside the GitHub repository, or set the working directory to the repository root."
+      )
+    }
+    
+    current <- parent
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+FILE <- file.path(ROOT_DIR, SOURCE_FILE)
+OUT_DIR <- file.path(ROOT_DIR, "outputs", "Extended_Data", "Figure_06")
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
@@ -63,7 +98,7 @@ AXIS_TITLE_SIZE   <- 7
 LEGEND_TEXT_SIZE  <- 6.2
 LEGEND_TITLE_SIZE <- 7
 TITLE_SIZE        <- 7
-TAG_SIZE          <- 11
+TAG_SIZE          <- 12
 
 # ------------------------------------------------------------
 # COLOUR PALETTE
@@ -229,7 +264,7 @@ Y_MAX <- 50
 # PLOTTING FUNCTION
 # ============================================================
 
-make_cooling_stack <- function(panel_data, panel_title, show_y = TRUE) {
+make_cooling_stack <- function(panel_data, panel_title) {
   ggplot(
     panel_data,
     aes(
@@ -262,16 +297,9 @@ make_cooling_stack <- function(panel_data, panel_title, show_y = TRUE) {
     labs(
       title = panel_title,
       x = "Year",
-      y = if (show_y) "Cumulative FOAK SMRs" else NULL
+      y = "Cumulative FOAK SMRs"
     ) +
-    common_theme +
-    theme(
-      axis.title.y = if (show_y) {
-        element_text(size = AXIS_TITLE_SIZE, margin = margin(r = 4))
-      } else {
-        element_blank()
-      }
-    )
+    common_theme
 }
 
 # ============================================================
@@ -280,14 +308,12 @@ make_cooling_stack <- function(panel_data, panel_title, show_y = TRUE) {
 
 p_a <- make_cooling_stack(
   filter(plot_df, scenario == "Baseline scenario"),
-  "Baseline scenario",
-  show_y = TRUE
+  "Baseline scenario"
 )
 
 p_b <- make_cooling_stack(
   filter(plot_df, scenario == "Accelerated scenario"),
-  "Accelerated scenario",
-  show_y = FALSE
+  "Accelerated scenario"
 )
 
 shared_legend <- get_legend(p_a)
@@ -346,6 +372,11 @@ ggsave(
   units = "mm",
   device = grDevices::cairo_pdf,
   bg = "white"
+)
+
+saveRDS(
+  final_plot,
+  file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
 )
 
 final_plot
