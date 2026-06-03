@@ -4,30 +4,15 @@
 # Reproduces Figure 5: projected FOAK SMR deployment by OECD membership
 # and reactor cooling type.
 #
-# Panel a shows cumulative FOAK SMR deployments by OECD membership under the
-# Baseline reference scenario.
-#
-# Panel b shows cumulative FOAK SMR deployments by OECD membership under the
-# Accelerated reference scenario.
-#
-# Panel c shows cumulative FOAK SMR deployments by reactor cooling type under
-# the Baseline reference scenario, distinguishing water-cooled designs from
-# advanced modular reactors (AMRs).
-#
-# Panel d shows cumulative FOAK SMR deployments by reactor cooling type under
-# the Accelerated reference scenario, distinguishing water-cooled designs from
-# advanced modular reactors (AMRs).
-#
-# Lines indicate median trajectories, and shaded bands indicate P10-P90 ranges.
-#
 # Required input:
-# fig05_source_data_oecd_cooling.xlsx
+# data/Main_Figures/fig05_source_data_oecd_cooling.xlsx
 #   - sheet: oecd_membership
 #   - sheet: cooling_type
 #
 # Outputs:
-# fig05_oecd_cooling.png
-# fig05_oecd_cooling.pdf
+# outputs/Figure_05/fig05_oecd_cooling.png
+# outputs/Figure_05/fig05_oecd_cooling.pdf
+# outputs/Figure_05/fig05_oecd_cooling.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -51,8 +36,37 @@ graphics.off()
 # PATHS
 # ------------------------------------------------------------
 
-FILE <- "fig05_source_data_oecd_cooling.xlsx"
-OUT_DIR <- "."
+SOURCE_FILE <- file.path("data", "Main_Figures", "fig05_source_data_oecd_cooling.xlsx")
+
+find_repo_root <- function(start_dir = getwd(), target_file = SOURCE_FILE) {
+  current <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    if (file.exists(file.path(current, target_file))) {
+      return(current)
+    }
+    
+    parent <- dirname(current)
+    
+    if (identical(parent, current)) {
+      stop(
+        "Could not locate repository root.\n",
+        "Expected to find: ", target_file, "\n",
+        "Start directory was: ", normalizePath(start_dir, winslash = "/", mustWork = TRUE), "\n\n",
+        "Run this script from inside the unzipped GitHub repository, or set the working directory to the repository root."
+      )
+    }
+    
+    current <- parent
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+FILE <- file.path(ROOT_DIR, SOURCE_FILE)
+OUT_DIR <- file.path(ROOT_DIR, "outputs", "Figure_05")
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
@@ -157,7 +171,7 @@ add_panel_decorations <- function(plot_obj, tag, title_text, title_x = 0.56, tit
       hjust = 0,
       vjust = 1,
       size = TAG_SIZE,
-      fontface = "plain"
+      fontface = "bold"
     ) +
     draw_label(
       title_text,
@@ -504,6 +518,11 @@ ggsave(
   units = "mm",
   device = grDevices::cairo_pdf,
   bg = "white"
+)
+
+saveRDS(
+  fig05_oecd_cooling,
+  file = file.path(OUT_DIR, paste0(FIGURE_STEM, ".rds"))
 )
 
 fig05_oecd_cooling
