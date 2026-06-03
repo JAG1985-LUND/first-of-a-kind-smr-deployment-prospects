@@ -5,11 +5,12 @@
 # and development phase.
 #
 # Required input:
-# sfig04__source_data_country_phase_counts.xlsx
+# data/Supplementary_Data/sfig04__source_data_country_phase_counts.xlsx
 #
 # Outputs:
-# sfig04_country_phase_counts.png
-# sfig04_country_phase_counts.pdf
+# outputs/Supplementary_Figures/Figure_04/sfig04_country_phase_counts.png
+# outputs/Supplementary_Figures/Figure_04/sfig04_country_phase_counts.pdf
+# outputs/Supplementary_Figures/Figure_04/sfig04_country_phase_counts.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -27,15 +28,60 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
+# FIND REPOSITORY ROOT
+# ------------------------------------------------------------
+
+find_repo_root <- function(start_dir = getwd()) {
+  current_dir <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    has_git     <- dir.exists(file.path(current_dir, ".git"))
+    has_data    <- dir.exists(file.path(current_dir, "data"))
+    has_scripts <- dir.exists(file.path(current_dir, "scripts"))
+    
+    if (has_git && has_data && has_scripts) {
+      return(current_dir)
+    }
+    
+    parent_dir <- dirname(current_dir)
+    
+    if (identical(parent_dir, current_dir)) {
+      stop(
+        "Repository root not found. Please run this script from within ",
+        "the first-of-a-kind-smr-deployment-prospects repository."
+      )
+    }
+    
+    current_dir <- parent_dir
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+# ------------------------------------------------------------
 # PATHS
 # ------------------------------------------------------------
 
 FILE <- "sfig04__source_data_country_phase_counts.xlsx"
 
-OUT_DIR <- "."
+FILE_IN <- file.path(
+  ROOT_DIR,
+  "data",
+  "Supplementary_Data",
+  FILE
+)
 
-if (!file.exists(FILE)) {
-  stop("Input file not found: ", FILE)
+OUT_DIR <- file.path(
+  ROOT_DIR,
+  "outputs",
+  "Supplementary_Figures",
+  "Figure_04"
+)
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+
+if (!file.exists(FILE_IN)) {
+  stop("Input file not found: ", FILE_IN)
 }
 
 # ------------------------------------------------------------
@@ -81,7 +127,7 @@ phase_cols <- c(
 # LOAD AND STANDARDISE DATA
 # ============================================================
 
-df <- read_excel(FILE)
+df <- read_excel(FILE_IN)
 
 names(df) <- gsub("\\s+", "_", names(df))
 
@@ -181,6 +227,11 @@ ggsave(
   units = "mm",
   device = cairo_pdf,
   bg = "white"
+)
+
+saveRDS(
+  object = p,
+  file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
 )
 
 p
