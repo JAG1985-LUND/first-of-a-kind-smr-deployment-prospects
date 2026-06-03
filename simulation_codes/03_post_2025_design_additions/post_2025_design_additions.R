@@ -23,7 +23,7 @@
 #   6) cooling_type_failure
 #
 # OUTPUT:
-#   outputs/Simulation_Outputs/03_post_2025_design_additions/post_2025_design_additions_output_final/
+#   outputs/Simulation_Outputs/03_post_2025_design_additions/post_2025_design_additions_output_final/run_<SIMS>_<timestamp>/
 #
 # MODEL WINDOW:
 #   • 2026–2075
@@ -176,7 +176,7 @@ stamp <- format(Sys.time(), "%Y%m%d_%H%M")
 
 RUN_DIR <- file.path(
   OUTDIR,
-  paste0("SMR_FutureAdditions_MC", SIMS, "_FAILGATED_LOGNORMAL_COOLPEN_COUNTRYLED_", stamp)
+  paste0("run_", SIMS, "_", stamp)
 )
 
 dir.create(RUN_DIR, showWarnings = FALSE, recursive = TRUE)
@@ -1164,12 +1164,12 @@ run_metadata <- tibble(
 # -------------------- EXPORT EXCEL + BUNDLE --------------------
 xlsx_path_run <- file.path(
   RUN_DIR,
-  paste0("SMR_FutureAdditions_MC", SIMS, "_FAILGATED_LOGNORMAL_COOLPEN_COUNTRYLED_", stamp, ".xlsx")
+  paste0("post2025_additions_mc_", SIMS, "_", stamp, ".xlsx")
 )
 
 rds_path_run <- file.path(
   RUN_DIR,
-  paste0("SMR_FutureAdditions_bundle_", stamp, ".rds")
+  paste0("post2025_additions_bundle_", SIMS, "_", stamp, ".rds")
 )
 
 xlsx_contents <- list(
