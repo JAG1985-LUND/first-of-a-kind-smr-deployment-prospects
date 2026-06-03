@@ -8,11 +8,12 @@
 # design pipeline.
 #
 # Required input:
-# sfig05_source_data_historical_vendors_pipeline.xlsx
+# data/Supplementary_Data/sfig05_source_data_historical_vendors_pipeline.xlsx
 #
 # Outputs:
-# sfig05_historical_vendors_global_pipeline_ab.png
-# sfig05_historical_vendors_global_pipeline_ab.pdf
+# outputs/Supplementary_Figures/Figure_05/sfig05_historical_vendors_global_pipeline_ab.png
+# outputs/Supplementary_Figures/Figure_05/sfig05_historical_vendors_global_pipeline_ab.pdf
+# outputs/Supplementary_Figures/Figure_05/sfig05_historical_vendors_global_pipeline_ab.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -33,21 +34,66 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
+# FIND REPOSITORY ROOT
+# ------------------------------------------------------------
+
+find_repo_root <- function(start_dir = getwd()) {
+  current_dir <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    has_git     <- dir.exists(file.path(current_dir, ".git"))
+    has_data    <- dir.exists(file.path(current_dir, "data"))
+    has_scripts <- dir.exists(file.path(current_dir, "scripts"))
+    
+    if (has_git && has_data && has_scripts) {
+      return(current_dir)
+    }
+    
+    parent_dir <- dirname(current_dir)
+    
+    if (identical(parent_dir, current_dir)) {
+      stop(
+        "Repository root not found. Run this script from inside the ",
+        "first-of-a-kind-smr-deployment-prospects repository."
+      )
+    }
+    
+    current_dir <- parent_dir
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+# ------------------------------------------------------------
 # PATHS
 # ------------------------------------------------------------
 
 FILE <- "sfig05_source_data_historical_vendors_pipeline.xlsx"
 
-OUT_DIR <- "."
+FILE_IN <- file.path(
+  ROOT_DIR,
+  "data",
+  "Supplementary_Data",
+  FILE
+)
 
-if (!file.exists(FILE)) {
-  stop("Input file not found: ", FILE)
+OUT_DIR <- file.path(
+  ROOT_DIR,
+  "outputs",
+  "Supplementary_Figures",
+  "Figure_05"
+)
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+
+if (!file.exists(FILE_IN)) {
+  stop("Input file not found: ", FILE_IN)
 }
 
 SHEET_GLOBAL <- "global_pipeline"
 SHEET_VENDOR <- "vendors_pipeline"
 
-sheet_names <- readxl::excel_sheets(FILE)
+sheet_names <- readxl::excel_sheets(FILE_IN)
 
 if (!all(c(SHEET_GLOBAL, SHEET_VENDOR) %in% sheet_names)) {
   stop(
@@ -131,12 +177,16 @@ clean_numeric <- function(x) {
 }
 
 year_seq <- function(start_year, end_year_exclusive, year_end = YEAR_END) {
-  if (is.na(start_year) || is.na(end_year_exclusive)) return(integer(0))
+  if (is.na(start_year) || is.na(end_year_exclusive)) {
+    return(integer(0))
+  }
   
   s <- as.integer(floor(start_year))
   e <- min(as.integer(ceiling(end_year_exclusive)) - 1L, year_end)
   
-  if (e < s) return(integer(0))
+  if (e < s) {
+    return(integer(0))
+  }
   
   seq.int(s, e)
 }
@@ -148,7 +198,7 @@ year_seq <- function(start_year, end_year_exclusive, year_end = YEAR_END) {
 build_pipeline_panel <- function(sheet_name, plot_title, panel_tag, y_limits, y_breaks) {
   
   raw <- readxl::read_excel(
-    FILE,
+    FILE_IN,
     sheet = sheet_name,
     na = c("N/A", "NA", "")
   )
@@ -242,8 +292,10 @@ build_pipeline_panel <- function(sheet_name, plot_title, panel_tag, y_limits, y_
       next_start = lead(start_year),
       last_start = max(start_year, na.rm = TRUE),
       failed_end = case_when(
-        phase_status == "Failed design" & !is.na(failure_year) ~ pmin(failure_year + 1L, YEAR_END + 1L),
-        phase_status == "Failed design" & is.na(failure_year)  ~ pmin(last_start + 2L, YEAR_END + 1L),
+        phase_status == "Failed design" & !is.na(failure_year) ~
+          pmin(failure_year + 1L, YEAR_END + 1L),
+        phase_status == "Failed design" & is.na(failure_year) ~
+          pmin(last_start + 2L, YEAR_END + 1L),
         TRUE ~ NA_real_
       ),
       end_year = case_when(
@@ -377,8 +429,13 @@ ggsave(
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
-  device = cairo_pdf,
+  device = grDevices::cairo_pdf,
   bg = "white"
+)
+
+saveRDS(
+  object = final_plot,
+  file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
 )
 
 final_plot
