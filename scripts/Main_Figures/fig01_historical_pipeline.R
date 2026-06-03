@@ -14,11 +14,12 @@
 # by reactor cooling type.
 #
 # Required input:
-# fig01_source_data_historical_pipeline.xlsx
+# data/Main_Figures/fig01_source_data_historical_pipeline.xlsx
 #
 # Outputs:
-# fig01_historical_pipeline.png
-# fig01_historical_pipeline.pdf
+# outputs/Figure_01/fig01_historical_pipeline.png
+# outputs/Figure_01/fig01_historical_pipeline.pdf
+# outputs/Figure_01/fig01_historical_pipeline.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -38,8 +39,37 @@ graphics.off()
 # PATHS
 # ------------------------------------------------------------
 
-FILE <- "fig01_source_data_historical_pipeline.xlsx"
-OUT  <- "."
+SOURCE_FILE <- file.path("data", "Main_Figures", "fig01_source_data_historical_pipeline.xlsx")
+
+find_repo_root <- function(start_dir = getwd(), target_file = SOURCE_FILE) {
+  current <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    if (file.exists(file.path(current, target_file))) {
+      return(current)
+    }
+    
+    parent <- dirname(current)
+    
+    if (identical(parent, current)) {
+      stop(
+        "Could not locate repository root.\n",
+        "Expected to find: ", target_file, "\n",
+        "Start directory was: ", normalizePath(start_dir, winslash = "/", mustWork = TRUE), "\n\n",
+        "Run this script from inside the GitHub repository, or set the working directory to the repository root."
+      )
+    }
+    
+    current <- parent
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+FILE <- file.path(ROOT_DIR, SOURCE_FILE)
+OUT  <- file.path(ROOT_DIR, "outputs", "Figure_01")
+
+dir.create(OUT, recursive = TRUE, showWarnings = FALSE)
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
@@ -661,6 +691,11 @@ ggsave(
   units = "mm",
   bg = "white",
   useDingbats = FALSE
+)
+
+saveRDS(
+  final_fig,
+  file = file.path(OUT, "fig01_historical_pipeline.rds")
 )
 
 final_fig
