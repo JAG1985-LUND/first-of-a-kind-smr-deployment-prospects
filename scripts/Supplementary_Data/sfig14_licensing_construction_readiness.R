@@ -2,17 +2,15 @@
 # First-of-a-Kind deployment prospects for small modular reactors
 #
 # Reproduces Supplementary Fig. 14:
-# Licensing- and construction-readiness across development phases
+# Licensing- and construction-readiness across development phases.
 #
 # Required input:
-# sfig_source_data_licensing_construction_readiness.xlsx
+# data/Supplementary_Data/sfig14_source_data_licensing_construction_readiness.xlsx
 #
 # Outputs:
-# sfig14_readiness_across_phases_combined.png
-# sfig14_readiness_across_phases_combined.pdf
-
-rm(list = ls())
-graphics.off()
+# outputs/Supplementary_Figures/Figure_14/sfig14_readiness_across_phases_combined.png
+# outputs/Supplementary_Figures/Figure_14/sfig14_readiness_across_phases_combined.pdf
+# outputs/Supplementary_Figures/Figure_14/sfig14_readiness_across_phases_combined.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -23,29 +21,87 @@ suppressPackageStartupMessages({
   library(tibble)
 })
 
+rm(list = ls())
+graphics.off()
+
 # ============================================================
 # SUPPLEMENTARY FIGURE 14
+# LICENSING- AND CONSTRUCTION-READINESS ACROSS PHASES
 # a) Licensing-readiness across development phases
 # b) Construction-readiness across development phases
-# Shared compact legend below both panels
 # ============================================================
+
+# ------------------------------------------------------------
+# FIND REPOSITORY ROOT
+# ------------------------------------------------------------
+
+find_repo_root <- function(start_dir = getwd()) {
+  current_dir <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    has_git     <- dir.exists(file.path(current_dir, ".git"))
+    has_data    <- dir.exists(file.path(current_dir, "data"))
+    has_scripts <- dir.exists(file.path(current_dir, "scripts"))
+    
+    if (has_git && has_data && has_scripts) {
+      return(current_dir)
+    }
+    
+    parent_dir <- dirname(current_dir)
+    
+    if (identical(parent_dir, current_dir)) {
+      stop(
+        "Repository root not found. Run this script from inside the ",
+        "first-of-a-kind-smr-deployment-prospects repository."
+      )
+    }
+    
+    current_dir <- parent_dir
+  }
+}
+
+ROOT_DIR <- find_repo_root()
 
 # ------------------------------------------------------------
 # PATHS
 # ------------------------------------------------------------
 
-FILE <- "sfig_source_data_licensing_construction_readiness.xlsx"
+FILE_CANDIDATES <- c(
+  "sfig14_source_data_licensing_construction_readiness.xlsx",
+  "sfig_source_data_licensing_construction_readiness.xlsx"
+)
+
+FILE_IN_CANDIDATES <- file.path(
+  ROOT_DIR,
+  "data",
+  "Supplementary_Data",
+  FILE_CANDIDATES
+)
+
+FILE_IN <- FILE_IN_CANDIDATES[file.exists(FILE_IN_CANDIDATES)][1]
+
+if (is.na(FILE_IN)) {
+  stop(
+    "Input file not found. Checked: ",
+    paste(FILE_IN_CANDIDATES, collapse = " | ")
+  )
+}
+
+FILE <- basename(FILE_IN)
+
+OUT_DIR <- file.path(
+  ROOT_DIR,
+  "outputs",
+  "Supplementary_Figures",
+  "Figure_14"
+)
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 SHEET_A <- "licensing_readiness"
 SHEET_B <- "construction_readiness"
 
-OUT_DIR <- "."
-
-OUT_BASE <- "sfig14_readiness_across_phases_combined"
-
-if (!file.exists(FILE)) {
-  stop("Input file not found: ", FILE)
-}
+FILE_STUB <- "sfig14_readiness_across_phases_combined"
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
@@ -148,15 +204,28 @@ theme_base <- theme_classic(base_size = BASE_SIZE) +
 
 prepare_sheet <- function(sheet_name, metric_patterns, phase_order) {
   
-  raw <- read_excel(FILE, sheet = sheet_name, na = c("N/A", "NA", ""))
+  raw <- read_excel(
+    FILE_IN,
+    sheet = sheet_name,
+    na = c("N/A", "NA", "")
+  )
+  
   names(raw) <- clean_names_local(names(raw))
   
   phase_col  <- pick_col(names(raw), c("^cohort$", "^phase$"))
-  design_col <- pick_col(names(raw), c("^design$", "design"))
+  design_col <- pick_col(names(raw), c("^design$", "design", "cooling"))
   metric_col <- pick_col(names(raw), metric_patterns)
   
   if (any(is.na(c(phase_col, design_col, metric_col)))) {
-    stop("Required columns not found in sheet '", sheet_name, "'.")
+    stop(
+      "Required columns not found in sheet '",
+      sheet_name,
+      "'.\nphase_col: ", phase_col,
+      "\ndesign_col: ", design_col,
+      "\nmetric_col: ", metric_col,
+      "\nAvailable columns are: ",
+      paste(names(raw), collapse = ", ")
+    )
   }
   
   raw %>%
@@ -231,7 +300,7 @@ make_panel <- function(dat, y_label, panel_label) {
       hjust = 0,
       vjust = 1,
       size = 11,
-      fontface = "plain"
+      fontface = "bold"
     )
 }
 
@@ -388,7 +457,7 @@ print(final_plot)
 # ============================================================
 
 ggsave(
-  filename = file.path(OUT_DIR, paste0(OUT_BASE, ".png")),
+  filename = file.path(OUT_DIR, paste0(FILE_STUB, ".png")),
   plot = final_plot,
   width = SAVE_W_MM,
   height = SAVE_H_MM,
@@ -398,13 +467,18 @@ ggsave(
 )
 
 ggsave(
-  filename = file.path(OUT_DIR, paste0(OUT_BASE, ".pdf")),
+  filename = file.path(OUT_DIR, paste0(FILE_STUB, ".pdf")),
   plot = final_plot,
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
-  device = cairo_pdf,
+  device = grDevices::cairo_pdf,
   bg = "white"
+)
+
+saveRDS(
+  object = final_plot,
+  file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
 )
 
 final_plot

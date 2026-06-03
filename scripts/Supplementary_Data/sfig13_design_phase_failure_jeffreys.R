@@ -68,8 +68,8 @@ ROOT_DIR <- find_repo_root()
 # ------------------------------------------------------------
 
 FILE_CANDIDATES <- c(
-  "sfig13_source_data_design_phase_jeffreys.xlsx",
-  "sfig13_design_phase_jeffreys.xlsx"
+  "sfig13_design_phase_jeffreys.xlsx",
+  "sfig13_source_data_design_phase_jeffreys.xlsx"
 )
 
 FILE_IN_CANDIDATES <- file.path(
