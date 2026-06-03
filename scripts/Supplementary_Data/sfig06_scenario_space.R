@@ -1,23 +1,27 @@
 # Code for the manuscript Gordon, J.A., Kazlou, T., Jewell, J. and Cherp, A.
 # First-of-a-Kind deployment prospects for small modular reactors
 #
-# Reproduces Supplementary Fig. 6: scenario-bounded median feasibility
-# space for FOAK SMR deployment.
+# Reproduces Supplementary Fig. 6: global FOAK SMR deployment across
+# reference and sensitivity scenarios.
+#
+# Panels a-c show cumulative FOAK SMR deployment under the Baseline scenario
+# at the P10, P50 and P90 levels, respectively. Panels d-f show cumulative
+# FOAK SMR deployment under the Accelerated scenario at the P10, P50 and P90
+# levels, respectively.
 #
 # Required input:
-# sfig06_source_data_scenario_space.xlsx
+# data/Supplementary_Data/sfig06_source_data_scenario_space.xlsx
 #
 # Outputs:
-# sfig06_scenario_space.png
-# sfig06_scenario_space.pdf
+# outputs/Supplementary_Figures/Figure_06/sfig06_scenario_space.png
+# outputs/Supplementary_Figures/Figure_06/sfig06_scenario_space.pdf
+# outputs/Supplementary_Figures/Figure_06/sfig06_scenario_space.rds
 
 suppressPackageStartupMessages({
   library(readxl)
   library(dplyr)
-  library(tidyr)
   library(ggplot2)
   library(cowplot)
-  library(stringr)
   library(grid)
 })
 
@@ -26,303 +30,529 @@ graphics.off()
 
 # ============================================================
 # SUPPLEMENTARY FIGURE 6
-# SCENARIO-BOUNDED MEDIAN FEASIBILITY SPACE
+# SIX-PANEL COUNTERFACTUAL SCENARIO SPACE
 # ============================================================
+
+# ------------------------------------------------------------
+# FIND REPOSITORY ROOT
+# ------------------------------------------------------------
+
+find_repo_root <- function(start_dir = getwd()) {
+  current_dir <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    has_git     <- dir.exists(file.path(current_dir, ".git"))
+    has_data    <- dir.exists(file.path(current_dir, "data"))
+    has_scripts <- dir.exists(file.path(current_dir, "scripts"))
+    
+    if (has_git && has_data && has_scripts) {
+      return(current_dir)
+    }
+    
+    parent_dir <- dirname(current_dir)
+    
+    if (identical(parent_dir, current_dir)) {
+      stop(
+        "Repository root not found. Run this script from inside the ",
+        "first-of-a-kind-smr-deployment-prospects repository."
+      )
+    }
+    
+    current_dir <- parent_dir
+  }
+}
+
+ROOT_DIR <- find_repo_root()
 
 # ------------------------------------------------------------
 # PATHS
 # ------------------------------------------------------------
 
-FILE <- "sfig06_source_data_scenario_space.xlsx"
+FILE_CANDIDATES <- c(
+  "sfig06_source_data_scenario_space.xlsx",
+  "sfig06_source_data_counterfactual_scenarios.xlsx"
+)
 
-OUT_DIR <- "."
+FILE_IN_CANDIDATES <- file.path(
+  ROOT_DIR,
+  "data",
+  "Supplementary_Data",
+  FILE_CANDIDATES
+)
 
-if (!file.exists(FILE)) {
-  stop("Input file not found: ", FILE)
+FILE_IN <- FILE_IN_CANDIDATES[file.exists(FILE_IN_CANDIDATES)][1]
+
+if (is.na(FILE_IN)) {
+  stop(
+    "Input file not found. Checked: ",
+    paste(FILE_IN_CANDIDATES, collapse = " | ")
+  )
 }
+
+FILE <- basename(FILE_IN)
+
+OUT_DIR <- file.path(
+  ROOT_DIR,
+  "outputs",
+  "Supplementary_Figures",
+  "Figure_06"
+)
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
 # ------------------------------------------------------------
 
 SAVE_W_MM <- 180
-SAVE_H_MM <- 115
+SAVE_H_MM <- 170
 SAVE_DPI  <- 600
 
 FILE_STUB <- "sfig06_scenario_space"
 
 # ------------------------------------------------------------
-# STYLE
+# TYPOGRAPHY
 # ------------------------------------------------------------
 
-BASE_SIZE <- 7
-axis_line_col <- "grey35"
-axis_line_lw  <- 0.3
-
-x_breaks <- c(2025, 2030, 2035, 2040, 2045, 2050)
-
-case_levels <- c(
-  "Reference",
-  "Current-phase completion",
-  "ADVANCE-OECD licensing",
-  "Late-stage risk",
-  "Construction cascade",
-  "Stalled development"
-)
-
-case_cols <- c(
-  "Reference"                = "black",
-  "Current-phase completion" = "#1F78B4",
-  "ADVANCE-OECD licensing"   = "#33A02C",
-  "Late-stage risk"          = "#E31A1C",
-  "Construction cascade"     = "#FF7F00",
-  "Stalled development"      = "#6A3D9A"
-)
+BASE_SIZE        <- 9
+AXIS_TEXT_SIZE   <- 8
+AXIS_TITLE_SIZE  <- 8
+LEGEND_TEXT_SIZE <- 8
+PANEL_TAG_SIZE   <- 11
 
 # ------------------------------------------------------------
 # HELPERS
 # ------------------------------------------------------------
 
 clean_names_local <- function(x) {
-  x <- trimws(x)
-  x <- gsub("[[:space:][:punct:]]+", "_", x)
+  x <- tolower(trimws(x))
+  x <- gsub("[^a-z0-9]+", "_", x)
   x <- gsub("_+", "_", x)
   x <- gsub("^_|_$", "", x)
-  tolower(x)
+  x
 }
 
-standardise_scenario <- function(x) {
-  x <- str_to_lower(str_squish(as.character(x)))
-  case_when(
-    str_detect(x, "baseline") ~ "Baseline",
-    str_detect(x, "accelerat") ~ "Accelerated",
-    TRUE ~ NA_character_
-  )
-}
-
-standardise_case <- function(x) {
-  x <- str_to_lower(str_squish(as.character(x)))
-  case_when(
-    str_detect(x, "reference|baseline scenario|accelerated scenario|main scenario") ~ "Reference",
-    str_detect(x, "current[- ]?phase|phase completion") ~ "Current-phase completion",
-    str_detect(x, "advance.*oecd|oecd licensing|faster licensing") ~ "ADVANCE-OECD licensing",
-    str_detect(x, "late[- ]?stage") ~ "Late-stage risk",
-    str_detect(x, "construction cascade|cascade") ~ "Construction cascade",
-    str_detect(x, "stalled development|stalled") ~ "Stalled development",
-    TRUE ~ NA_character_
-  )
-}
-
-first_existing_col <- function(df, candidates) {
+pick_col <- function(df, candidates, label) {
   out <- intersect(candidates, names(df))
-  if (length(out) == 0) return(NA_character_)
-  out[1]
-}
-
-read_sheet_standardised <- function(sheet_name) {
-  raw <- read_excel(FILE, sheet = sheet_name)
-  names(raw) <- clean_names_local(names(raw))
   
-  year_col <- first_existing_col(raw, c("year", "x", "time"))
-  scenario_col <- first_existing_col(raw, c("scenario", "reference_scenario"))
-  case_col <- first_existing_col(raw, c("case", "counterfactual", "sensitivity", "scenario_case"))
-  p10_col <- first_existing_col(raw, c("p10", "q10", "lower", "lower_p10", "p_10"))
-  p50_col <- first_existing_col(raw, c("p50", "median", "q50", "mid", "p_50"))
-  p90_col <- first_existing_col(raw, c("p90", "q90", "upper", "upper_p90", "p_90"))
-  
-  if (is.na(year_col) || is.na(p50_col)) {
+  if (length(out) == 0) {
     stop(
-      "Could not identify required columns in sheet '", sheet_name, "'. ",
-      "Need at least year and p50/median columns. Available columns are: ",
-      paste(names(raw), collapse = ", ")
+      "Missing required column for ", label, ". Checked: ",
+      paste(candidates, collapse = ", "),
+      "\nAvailable columns are: ",
+      paste(names(df), collapse = ", ")
     )
   }
   
-  out <- raw %>%
-    transmute(
-      year = suppressWarnings(as.numeric(.data[[year_col]])),
-      scenario_raw = if (!is.na(scenario_col)) as.character(.data[[scenario_col]]) else sheet_name,
-      case_raw = if (!is.na(case_col)) as.character(.data[[case_col]]) else "Reference",
-      p10 = if (!is.na(p10_col)) suppressWarnings(as.numeric(.data[[p10_col]])) else NA_real_,
-      p50 = suppressWarnings(as.numeric(.data[[p50_col]])),
-      p90 = if (!is.na(p90_col)) suppressWarnings(as.numeric(.data[[p90_col]])) else NA_real_
-    ) %>%
-    mutate(
-      Scenario = standardise_scenario(scenario_raw),
-      Case = standardise_case(case_raw)
-    ) %>%
-    filter(!is.na(year), !is.na(p50))
-  
-  out
+  out[1]
 }
 
-# ------------------------------------------------------------
+standardise_scenario <- function(x) {
+  x <- trimws(as.character(x))
+  
+  dplyr::case_when(
+    x %in% c(
+      "reference",
+      "Reference",
+      "Reference case",
+      "reference_case"
+    ) ~ "Reference case",
+    
+    x %in% c(
+      "phase_completion",
+      "Phase completion",
+      "current_phase_completion",
+      "Current phase completion",
+      "Current-phase completion"
+    ) ~ "Current phase completion",
+    
+    x %in% c(
+      "oecd_advance",
+      "ADVANCE OECD licensing",
+      "advance_oecd_licensing",
+      "Advance-OECD licensing",
+      "ADVANCE-OECD licensing"
+    ) ~ "ADVANCE-OECD licensing",
+    
+    x %in% c(
+      "late_stage_risk",
+      "Late stage risk",
+      "Late stage risk ",
+      "Late-stage risk"
+    ) ~ "Late-stage risk",
+    
+    x %in% c(
+      "construction_cascade",
+      "Construction cascade"
+    ) ~ "Construction cascade",
+    
+    x %in% c(
+      "stalled_development",
+      "Stalled Development",
+      "Stalled development"
+    ) ~ "Stalled development",
+    
+    TRUE ~ x
+  )
+}
+
+# ============================================================
 # LOAD AND STANDARDISE DATA
-# ------------------------------------------------------------
+# ============================================================
 
-sheet_names <- excel_sheets(FILE)
+df_raw <- readxl::read_excel(FILE_IN)
 
-dat <- bind_rows(lapply(sheet_names, read_sheet_standardised))
+names(df_raw) <- clean_names_local(names(df_raw))
 
-if (!("Scenario" %in% names(dat)) || all(is.na(dat$Scenario))) {
-  stop("Could not identify Baseline / Accelerated scenario information in workbook: ", FILE)
-}
+year_col <- pick_col(
+  df_raw,
+  c("year"),
+  "year"
+)
 
-if (!("Case" %in% names(dat)) || all(is.na(dat$Case))) {
-  stop("Could not identify counterfactual / case information in workbook: ", FILE)
-}
+group_col <- pick_col(
+  df_raw,
+  c("group"),
+  "group"
+)
 
-dat <- dat %>%
-  filter(
-    Scenario %in% c("Baseline", "Accelerated"),
-    Case %in% case_levels
+scenario_col <- pick_col(
+  df_raw,
+  c("scenario"),
+  "scenario"
+)
+
+p10_baseline_col <- pick_col(
+  df_raw,
+  c("p10_baseline_scenario", "conservative_baseline_scenario"),
+  "baseline P10"
+)
+
+p50_baseline_col <- pick_col(
+  df_raw,
+  c("p50_baseline_scenario", "median_baseline_scenario"),
+  "baseline P50"
+)
+
+p90_baseline_col <- pick_col(
+  df_raw,
+  c("p90_baseline_scenario", "optimistic_baseline_scenario"),
+  "baseline P90"
+)
+
+p10_accelerated_col <- pick_col(
+  df_raw,
+  c("p10_accelerated_scenario", "conservative_accelerated_scenario"),
+  "accelerated P10"
+)
+
+p50_accelerated_col <- pick_col(
+  df_raw,
+  c("p50_accelerated_scenario", "median_accelerated_scenario"),
+  "accelerated P50"
+)
+
+p90_accelerated_col <- pick_col(
+  df_raw,
+  c(
+    "p90_accelerated_scenario",
+    "p90_accerlerated_scenario",
+    "optimistic_accelerated_scenario",
+    "optimistic_accerlerated_scenario"
+  ),
+  "accelerated P90"
+)
+
+df <- df_raw %>%
+  transmute(
+    year = as.numeric(.data[[year_col]]),
+    group = tolower(trimws(as.character(.data[[group_col]]))),
+    scenario = standardise_scenario(.data[[scenario_col]]),
+    p10_baseline_scenario = as.numeric(.data[[p10_baseline_col]]),
+    p50_baseline_scenario = as.numeric(.data[[p50_baseline_col]]),
+    p90_baseline_scenario = as.numeric(.data[[p90_baseline_col]]),
+    p10_accelerated_scenario = as.numeric(.data[[p10_accelerated_col]]),
+    p50_accelerated_scenario = as.numeric(.data[[p50_accelerated_col]]),
+    p90_accelerated_scenario = as.numeric(.data[[p90_accelerated_col]])
   ) %>%
-  distinct(Scenario, Case, year, .keep_all = TRUE) %>%
+  filter(group == "global") %>%
+  arrange(scenario, year)
+
+if (nrow(df) == 0) {
+  stop("No rows found where group == 'global'. Check the source workbook.")
+}
+
+# ============================================================
+# SCENARIO ORDER AND COLOURS
+# ============================================================
+
+scenario_levels <- c(
+  "Reference case",
+  "Current phase completion",
+  "ADVANCE-OECD licensing",
+  "Late-stage risk",
+  "Construction cascade",
+  "Stalled development"
+)
+
+df <- df %>%
   mutate(
-    Case = factor(Case, levels = case_levels),
-    Scenario = factor(Scenario, levels = c("Baseline", "Accelerated"))
+    scenario_label = factor(
+      scenario,
+      levels = scenario_levels
+    )
+  ) %>%
+  filter(!is.na(scenario_label))
+
+if (nrow(df) == 0) {
+  stop("No recognised scenario rows found after standardisation.")
+}
+
+colour_map <- c(
+  "Reference case"           = "black",
+  "Current phase completion" = "#2ca02c",
+  "ADVANCE-OECD licensing"   = "#1b9e77",
+  "Late-stage risk"          = "#7f0000",
+  "Construction cascade"     = "#f46d43",
+  "Stalled development"      = "#d62728"
+)
+
+# ============================================================
+# THEME
+# ============================================================
+
+base_theme <- theme_classic(base_size = BASE_SIZE) +
+  theme(
+    plot.title = element_blank(),
+    axis.title.x = element_text(
+      size = AXIS_TITLE_SIZE,
+      margin = margin(t = 8)
+    ),
+    axis.title.y = element_text(
+      size = AXIS_TITLE_SIZE,
+      margin = margin(r = 8)
+    ),
+    axis.text.x = element_text(
+      size = AXIS_TEXT_SIZE,
+      colour = "black"
+    ),
+    axis.text.y = element_text(
+      size = AXIS_TEXT_SIZE,
+      colour = "black"
+    ),
+    axis.line.x = element_line(
+      colour = "grey35",
+      linewidth = 0.3
+    ),
+    axis.line.y = element_line(
+      colour = "grey35",
+      linewidth = 0.3
+    ),
+    axis.ticks = element_line(
+      colour = "grey35",
+      linewidth = 0.3
+    ),
+    axis.ticks.length = unit(1.8, "mm"),
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    legend.title = element_blank(),
+    legend.text = element_text(size = LEGEND_TEXT_SIZE),
+    legend.key.width = unit(1.15, "cm"),
+    legend.key.height = unit(0.35, "cm"),
+    legend.spacing.x = unit(0.25, "cm"),
+    legend.box.margin = margin(0, 0, 0, 0),
+    legend.margin = margin(0, 0, 0, 0),
+    panel.border = element_blank(),
+    plot.background = element_rect(fill = "white", colour = NA),
+    panel.background = element_rect(fill = "white", colour = NA),
+    legend.background = element_rect(fill = "white", colour = NA),
+    legend.box.background = element_rect(fill = "white", colour = NA),
+    plot.margin = margin(6, 8, 4, 8)
   )
 
-# ------------------------------------------------------------
+# ============================================================
 # PANEL FUNCTION
-# ------------------------------------------------------------
+# ============================================================
 
-build_panel <- function(scenario_name, panel_tag) {
-  
-  df_s <- dat %>%
-    filter(Scenario == scenario_name)
-  
-  ref_df <- df_s %>%
-    filter(Case == "Reference") %>%
-    arrange(year)
-  
-  cf_df <- df_s %>%
-    filter(Case != "Reference") %>%
-    arrange(Case, year)
-  
-  y_max <- max(
-    c(df_s$p90, df_s$p50),
-    na.rm = TRUE
-  )
-  
-  y_upper <- ceiling(y_max / 5) * 5
-  
-  p <- ggplot() +
-    geom_ribbon(
-      data = ref_df,
-      aes(x = year, ymin = p10, ymax = p90),
-      fill = "grey80",
-      alpha = 1
+make_panel <- function(value_col) {
+  ggplot(
+    df %>% filter(scenario_label != "Reference case"),
+    aes(
+      x = year,
+      y = .data[[value_col]],
+      colour = scenario_label,
+      group = scenario_label
+    )
+  ) +
+    geom_step(
+      linewidth = 0.70,
+      direction = "hv",
+      lineend = "round"
     ) +
-    geom_line(
-      data = cf_df,
-      aes(x = year, y = p50, colour = Case),
-      linewidth = 0.7
-    ) +
-    geom_line(
-      data = ref_df,
-      aes(x = year, y = p50),
-      colour = "black",
-      linewidth = 0.8
+    geom_step(
+      data = df %>% filter(scenario_label == "Reference case"),
+      aes(
+        x = year,
+        y = .data[[value_col]],
+        colour = scenario_label,
+        group = scenario_label
+      ),
+      linewidth = 1.00,
+      direction = "hv",
+      lineend = "round"
     ) +
     scale_colour_manual(
-      values = case_cols,
-      breaks = case_levels[-1],
-      name = NULL
+      values = colour_map,
+      breaks = scenario_levels,
+      drop = FALSE
     ) +
     scale_x_continuous(
-      limits = c(2025, 2050),
-      breaks = x_breaks,
-      expand = expansion(mult = c(0, 0))
+      breaks = c(2020, 2030, 2040, 2050),
+      limits = c(min(df$year, na.rm = TRUE), 2051),
+      expand = c(0, 0)
     ) +
     scale_y_continuous(
-      limits = c(0, y_upper),
-      breaks = seq(0, y_upper, by = 5),
-      expand = expansion(mult = c(0, 0.02))
+      breaks = c(15, 30, 45, 60),
+      limits = c(0, 62),
+      expand = c(0, 0)
     ) +
     labs(
       x = "Year",
-      y = "Cumulative FOAK SMRs",
-      title = scenario_name
+      y = NULL
     ) +
-    theme_classic(base_size = BASE_SIZE) +
-    theme(
-      axis.line.x = element_line(colour = axis_line_col, linewidth = axis_line_lw),
-      axis.line.y = element_line(colour = axis_line_col, linewidth = axis_line_lw),
-      axis.ticks = element_line(colour = axis_line_col, linewidth = axis_line_lw),
-      axis.ticks.length = unit(0.12, "cm"),
-      axis.title = element_text(size = BASE_SIZE),
-      axis.text = element_text(size = BASE_SIZE),
-      plot.title = element_text(size = BASE_SIZE, face = "bold", hjust = 0.5),
-      legend.position = "bottom",
-      legend.title = element_blank(),
-      legend.text = element_text(size = BASE_SIZE),
-      legend.key.width = unit(0.7, "cm"),
-      legend.key.height = unit(0.35, "cm"),
-      plot.margin = margin(4, 4, 4, 4),
-      plot.background = element_rect(fill = "white", colour = NA),
-      panel.background = element_rect(fill = "white", colour = NA)
-    )
-  
-  ggdraw(p) +
+    base_theme
+}
+
+add_panel_tag <- function(plot_obj, tag) {
+  ggdraw() +
+    draw_plot(
+      plot_obj,
+      x = 0,
+      y = 0,
+      width = 1,
+      height = 0.955
+    ) +
     draw_plot_label(
-      label = panel_tag,
+      tag,
       x = 0.01,
-      y = 0.99,
+      y = 0.995,
       hjust = 0,
       vjust = 1,
-      size = 12,
-      fontface = "plain"
+      size = PANEL_TAG_SIZE,
+      fontface = "bold"
     )
 }
 
-# ------------------------------------------------------------
+# ============================================================
 # BUILD PANELS
-# ------------------------------------------------------------
+# ============================================================
 
-p_a <- build_panel("Baseline", "a")
-p_b <- build_panel("Accelerated", "b")
+p_a <- make_panel("p10_baseline_scenario")
+p_b <- make_panel("p50_baseline_scenario")
+p_c <- make_panel("p90_baseline_scenario")
+p_d <- make_panel("p10_accelerated_scenario")
+p_e <- make_panel("p50_accelerated_scenario")
+p_f <- make_panel("p90_accelerated_scenario")
 
-legend_plot <- ggplot(
-  dat %>% filter(Case != "Reference"),
-  aes(x = year, y = p50, colour = Case)
-) +
-  geom_line(linewidth = 0.8) +
-  scale_colour_manual(
-    values = case_cols,
-    breaks = case_levels[-1],
-    name = NULL
-  ) +
-  theme_void(base_size = BASE_SIZE) +
-  theme(
-    legend.position = "bottom",
-    legend.text = element_text(size = BASE_SIZE),
-    legend.key.width = unit(0.7, "cm"),
-    legend.key.height = unit(0.35, "cm")
-  )
+# ============================================================
+# LEGEND
+# ============================================================
 
-legend_grob <- cowplot::get_legend(legend_plot)
+legend <- cowplot::get_legend(
+  p_a +
+    theme(
+      legend.position = "bottom",
+      plot.margin = margin(0, 0, 0, 0)
+    ) +
+    guides(
+      colour = guide_legend(
+        nrow = 2,
+        byrow = TRUE,
+        override.aes = list(
+          linewidth = c(1.00, rep(0.70, 5))
+        )
+      )
+    )
+)
 
-top_panels <- plot_grid(
-  p_a,
-  p_b,
-  ncol = 2,
+# ============================================================
+# CLEAN PANELS
+# ============================================================
+
+p_a_clean <- p_a + theme(legend.position = "none")
+p_b_clean <- p_b + theme(legend.position = "none")
+p_c_clean <- p_c + theme(legend.position = "none")
+p_d_clean <- p_d + theme(legend.position = "none")
+p_e_clean <- p_e + theme(legend.position = "none")
+p_f_clean <- p_f + theme(legend.position = "none")
+
+p_a_tag <- add_panel_tag(p_a_clean, "a")
+p_b_tag <- add_panel_tag(p_b_clean, "b")
+p_c_tag <- add_panel_tag(p_c_clean, "c")
+p_d_tag <- add_panel_tag(p_d_clean, "d")
+p_e_tag <- add_panel_tag(p_e_clean, "e")
+p_f_tag <- add_panel_tag(p_f_clean, "f")
+
+# ============================================================
+# ASSEMBLE FIGURE
+# ============================================================
+
+top_row <- plot_grid(
+  p_a_tag,
+  p_b_tag,
+  p_c_tag,
+  nrow = 1,
+  rel_widths = c(1, 1, 1),
   align = "hv",
   axis = "tblr"
 )
 
-final_plot <- plot_grid(
-  top_panels,
-  legend_grob,
+bottom_row <- plot_grid(
+  p_d_tag,
+  p_e_tag,
+  p_f_tag,
+  nrow = 1,
+  rel_widths = c(1, 1, 1),
+  align = "hv",
+  axis = "tblr"
+)
+
+panel_block <- plot_grid(
+  top_row,
+  bottom_row,
   ncol = 1,
-  rel_heights = c(1, 0.12)
+  rel_heights = c(1, 1),
+  align = "v"
+)
+
+panel_block_with_y <- ggdraw() +
+  draw_plot(
+    panel_block,
+    x = 0.06,
+    y = 0,
+    width = 0.94,
+    height = 1
+  ) +
+  draw_label(
+    "Cumulative FOAK SMRs",
+    x = 0.018,
+    y = 0.5,
+    angle = 90,
+    size = 10
+  )
+
+final_plot <- plot_grid(
+  panel_block_with_y,
+  legend,
+  ncol = 1,
+  rel_heights = c(1, 0.18)
 )
 
 print(final_plot)
 
-# ------------------------------------------------------------
+# ============================================================
 # SAVE SUPPLEMENTARY FIGURE 6
-# ------------------------------------------------------------
+# ============================================================
 
 ggsave(
   filename = file.path(OUT_DIR, paste0(FILE_STUB, ".png")),
@@ -340,8 +570,13 @@ ggsave(
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
-  device = cairo_pdf,
+  device = grDevices::cairo_pdf,
   bg = "white"
+)
+
+saveRDS(
+  object = final_plot,
+  file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
 )
 
 final_plot
