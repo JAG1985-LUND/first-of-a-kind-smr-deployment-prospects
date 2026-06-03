@@ -5,14 +5,12 @@
 # of design-phase failure probabilities under Baseline and Accelerated scenarios.
 #
 # Required input:
-# sfig13_design_phase_jeffreys.xlsx
+# data/Supplementary_Data/sfig13_design_phase_jeffreys.xlsx
 #
 # Outputs:
-# sfig13_cd_bd_dd_jeffreys.png
-# sfig13_cd_bd_dd_jeffreys.pdf
-
-rm(list = ls())
-graphics.off()
+# outputs/Supplementary_Figures/Figure_13/sfig13_cd_bd_dd_jeffreys.png
+# outputs/Supplementary_Figures/Figure_13/sfig13_cd_bd_dd_jeffreys.pdf
+# outputs/Supplementary_Figures/Figure_13/sfig13_cd_bd_dd_jeffreys.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -22,37 +20,100 @@ suppressPackageStartupMessages({
   library(cowplot)
 })
 
+rm(list = ls())
+graphics.off()
+
 # ============================================================
-# SUPPLEMENTARY FIGURE 13 — DESIGN-PHASE JEFFREYS POSTERIORS
-# Panels: a–c
+# SUPPLEMENTARY FIGURE 13
+# DESIGN-PHASE JEFFREYS POSTERIORS
+# Panels:
 # a: Conceptual design
 # b: Basic design
 # c: Detailed design
 # ============================================================
 
-# ------------------------
-# PATHS
-# ------------------------
+# ------------------------------------------------------------
+# FIND REPOSITORY ROOT
+# ------------------------------------------------------------
 
-FILE <- "sfig13_design_phase_jeffreys.xlsx"
-
-OUT_DIR <- "."
-
-OUT_BASE <- "sfig13_cd_bd_dd_jeffreys"
-
-if (!file.exists(FILE)) {
-  stop("Input file not found: ", FILE)
+find_repo_root <- function(start_dir = getwd()) {
+  current_dir <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    has_git     <- dir.exists(file.path(current_dir, ".git"))
+    has_data    <- dir.exists(file.path(current_dir, "data"))
+    has_scripts <- dir.exists(file.path(current_dir, "scripts"))
+    
+    if (has_git && has_data && has_scripts) {
+      return(current_dir)
+    }
+    
+    parent_dir <- dirname(current_dir)
+    
+    if (identical(parent_dir, current_dir)) {
+      stop(
+        "Repository root not found. Run this script from inside the ",
+        "first-of-a-kind-smr-deployment-prospects repository."
+      )
+    }
+    
+    current_dir <- parent_dir
+  }
 }
 
-# ------------------------
-# SETTINGS
-# ------------------------
+ROOT_DIR <- find_repo_root()
+
+# ------------------------------------------------------------
+# PATHS
+# ------------------------------------------------------------
+
+FILE_CANDIDATES <- c(
+  "sfig13_source_data_design_phase_jeffreys.xlsx",
+  "sfig13_design_phase_jeffreys.xlsx"
+)
+
+FILE_IN_CANDIDATES <- file.path(
+  ROOT_DIR,
+  "data",
+  "Supplementary_Data",
+  FILE_CANDIDATES
+)
+
+FILE_IN <- FILE_IN_CANDIDATES[file.exists(FILE_IN_CANDIDATES)][1]
+
+if (is.na(FILE_IN)) {
+  stop(
+    "Input file not found. Checked: ",
+    paste(FILE_IN_CANDIDATES, collapse = " | ")
+  )
+}
+
+FILE <- basename(FILE_IN)
+
+OUT_DIR <- file.path(
+  ROOT_DIR,
+  "outputs",
+  "Supplementary_Figures",
+  "Figure_13"
+)
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+
+# ------------------------------------------------------------
+# EXPORT SETTINGS
+# ------------------------------------------------------------
 
 SAVE_W_IN <- 12
 SAVE_H_IN <- 4
 SAVE_DPI  <- 600
 
+FILE_STUB <- "sfig13_cd_bd_dd_jeffreys"
+
 set.seed(350)
+
+# ------------------------------------------------------------
+# STYLE
+# ------------------------------------------------------------
 
 col_acc  <- "forestgreen"
 col_base <- "grey35"
@@ -60,9 +121,9 @@ col_base <- "grey35"
 axis_line_col <- "grey35"
 axis_line_lw  <- 0.3
 
-# ------------------------
+# ------------------------------------------------------------
 # HELPERS
-# ------------------------
+# ------------------------------------------------------------
 
 clean_names_local <- function(x) {
   x <- trimws(x)
@@ -72,11 +133,12 @@ clean_names_local <- function(x) {
   tolower(x)
 }
 
-# ------------------------
+# ============================================================
 # READ SOURCE DATA
-# ------------------------
+# ============================================================
 
-df_counts <- read_excel(FILE, sheet = 1)
+df_counts <- read_excel(FILE_IN, sheet = 1)
+
 names(df_counts) <- clean_names_local(names(df_counts))
 
 required_cols <- c(
@@ -132,9 +194,9 @@ get_count <- function(phase_name, scenario_name, var_name) {
   out
 }
 
-# ------------------------
+# ============================================================
 # PLOT HELPER
-# ------------------------
+# ============================================================
 
 plot_phase <- function(phase_name, p_max, xlab, tag) {
   
@@ -213,14 +275,14 @@ plot_phase <- function(phase_name, p_max, xlab, tag) {
       y = 0.99,
       hjust = 0,
       vjust = 1,
-      fontface = "plain",
+      fontface = "bold",
       size = 12
     )
 }
 
-# ------------------------
+# ============================================================
 # BUILD PANELS
-# ------------------------
+# ============================================================
 
 p_cd <- plot_phase(
   phase_name = "conceptual_design",
@@ -243,9 +305,9 @@ p_dd <- plot_phase(
   tag = "c"
 )
 
-# ------------------------
+# ============================================================
 # COMBINE PANELS
-# ------------------------
+# ============================================================
 
 fig_combined <- plot_grid(
   p_cd,
@@ -258,12 +320,12 @@ fig_combined <- plot_grid(
 
 print(fig_combined)
 
-# ------------------------
+# ============================================================
 # SAVE SUPPLEMENTARY FIGURE 13
-# ------------------------
+# ============================================================
 
 ggsave(
-  filename = file.path(OUT_DIR, paste0(OUT_BASE, ".png")),
+  filename = file.path(OUT_DIR, paste0(FILE_STUB, ".png")),
   plot = fig_combined,
   width = SAVE_W_IN,
   height = SAVE_H_IN,
@@ -272,12 +334,17 @@ ggsave(
 )
 
 ggsave(
-  filename = file.path(OUT_DIR, paste0(OUT_BASE, ".pdf")),
+  filename = file.path(OUT_DIR, paste0(FILE_STUB, ".pdf")),
   plot = fig_combined,
   width = SAVE_W_IN,
   height = SAVE_H_IN,
-  device = cairo_pdf,
+  device = grDevices::cairo_pdf,
   bg = "white"
+)
+
+saveRDS(
+  object = fig_combined,
+  file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
 )
 
 fig_combined
