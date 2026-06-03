@@ -5,7 +5,7 @@
 # and development phase.
 #
 # Required input:
-# data/Supplementary_Data/sfig04__source_data_country_phase_counts.xlsx
+# data/Supplementary_Data/sfig04_source_data_country_phase_counts.xlsx
 #
 # Outputs:
 # outputs/Supplementary_Figures/Figure_04/sfig04_country_phase_counts.png
@@ -47,8 +47,8 @@ find_repo_root <- function(start_dir = getwd()) {
     
     if (identical(parent_dir, current_dir)) {
       stop(
-        "Repository root not found. Please run this script from within ",
-        "the first-of-a-kind-smr-deployment-prospects repository."
+        "Repository root not found. Run this script from inside the ",
+        "first-of-a-kind-smr-deployment-prospects repository."
       )
     }
     
@@ -62,14 +62,28 @@ ROOT_DIR <- find_repo_root()
 # PATHS
 # ------------------------------------------------------------
 
-FILE <- "sfig04__source_data_country_phase_counts.xlsx"
+FILE_CANDIDATES <- c(
+  "sfig04_source_data_country_phase_counts.xlsx",
+  "sfig04__source_data_country_phase_counts.xlsx"
+)
 
-FILE_IN <- file.path(
+FILE_IN_CANDIDATES <- file.path(
   ROOT_DIR,
   "data",
   "Supplementary_Data",
-  FILE
+  FILE_CANDIDATES
 )
+
+FILE_IN <- FILE_IN_CANDIDATES[file.exists(FILE_IN_CANDIDATES)][1]
+
+if (is.na(FILE_IN)) {
+  stop(
+    "Input file not found. Checked: ",
+    paste(FILE_IN_CANDIDATES, collapse = " | ")
+  )
+}
+
+FILE <- basename(FILE_IN)
 
 OUT_DIR <- file.path(
   ROOT_DIR,
@@ -79,10 +93,6 @@ OUT_DIR <- file.path(
 )
 
 dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
-
-if (!file.exists(FILE_IN)) {
-  stop("Input file not found: ", FILE_IN)
-}
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
@@ -131,9 +141,15 @@ df <- read_excel(FILE_IN)
 
 names(df) <- gsub("\\s+", "_", names(df))
 
-if (!all(c("Country", "Phase") %in% names(df))) {
+required_cols <- c("Country", "Phase")
+
+missing_cols <- setdiff(required_cols, names(df))
+
+if (length(missing_cols) > 0) {
   stop(
-    "Required columns not found. Available columns are: ",
+    "Missing required column(s): ",
+    paste(missing_cols, collapse = ", "),
+    "\nAvailable columns are: ",
     paste(names(df), collapse = ", ")
   )
 }
@@ -225,7 +241,7 @@ ggsave(
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
-  device = cairo_pdf,
+  device = grDevices::cairo_pdf,
   bg = "white"
 )
 
