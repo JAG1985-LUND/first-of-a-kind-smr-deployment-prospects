@@ -1,3 +1,4 @@
+
 # Code for the manuscript Gordon, J.A., Kazlou, T., Jewell, J. and Cherp, A.
 # First-of-a-Kind deployment prospects for small modular reactors
 #
@@ -5,17 +6,15 @@
 # Fitted distributions for SMR and historical construction durations.
 #
 # Panel a: SMR construction durations (n = 24)
-# Panel b: Historical construction durations for 30–500 MW reactors
+# Panel b: Historical construction durations for 30-500 MW reactors
 #
 # Required input:
-# sfig12_source_data_historical_reactors_500MW.xlsx
+# data/Supplementary_Data/sfig12_source_data_historical_reactors_500MW.xlsx
 #
 # Outputs:
-# sfig12_historical_reactors_500MW.png
-# sfig12_historical_reactors_500MW.pdf
-
-rm(list = ls())
-graphics.off()
+# outputs/Supplementary_Figures/Figure_12/sfig12_historical_reactors_500MW.png
+# outputs/Supplementary_Figures/Figure_12/sfig12_historical_reactors_500MW.pdf
+# outputs/Supplementary_Figures/Figure_12/sfig12_historical_reactors_500MW.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -27,34 +26,82 @@ suppressPackageStartupMessages({
   library(grid)
 })
 
+rm(list = ls())
+graphics.off()
+
 # ============================================================
 # SUPPLEMENTARY FIGURE 12
 # FITTED DISTRIBUTIONS FOR CONSTRUCTION DURATIONS
 # ============================================================
 
 # ------------------------------------------------------------
+# FIND REPOSITORY ROOT
+# ------------------------------------------------------------
+
+find_repo_root <- function(start_dir = getwd()) {
+  current_dir <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    has_git     <- dir.exists(file.path(current_dir, ".git"))
+    has_data    <- dir.exists(file.path(current_dir, "data"))
+    has_scripts <- dir.exists(file.path(current_dir, "scripts"))
+    
+    if (has_git && has_data && has_scripts) {
+      return(current_dir)
+    }
+    
+    parent_dir <- dirname(current_dir)
+    
+    if (identical(parent_dir, current_dir)) {
+      stop(
+        "Repository root not found. Run this script from inside the ",
+        "first-of-a-kind-smr-deployment-prospects repository."
+      )
+    }
+    
+    current_dir <- parent_dir
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+# ------------------------------------------------------------
 # PATHS
 # ------------------------------------------------------------
 
-FILE <- "sfig12_source_data_historical_reactors_500MW.xlsx"
+FILE_CANDIDATES <- c(
+  "sfig12_source_data_historical_reactors_500MW.xlsx",
+  "sfig12_historical_reactors_500MW.xlsx"
+)
 
-OUT_DIR <- "."
+FILE_IN_CANDIDATES <- file.path(
+  ROOT_DIR,
+  "data",
+  "Supplementary_Data",
+  FILE_CANDIDATES
+)
 
-if (!file.exists(FILE)) {
-  stop("Input file not found: ", FILE)
+FILE_IN <- FILE_IN_CANDIDATES[file.exists(FILE_IN_CANDIDATES)][1]
+
+if (is.na(FILE_IN)) {
+  stop(
+    "Input file not found. Checked: ",
+    paste(FILE_IN_CANDIDATES, collapse = " | ")
+  )
 }
 
-OUT_BASE <- "sfig12_historical_reactors_500MW"
+FILE <- basename(FILE_IN)
 
-PNG_OUT <- file.path(
-  OUT_DIR,
-  paste0(OUT_BASE, ".png")
+OUT_DIR <- file.path(
+  ROOT_DIR,
+  "outputs",
+  "Supplementary_Figures",
+  "Figure_12"
 )
 
-PDF_OUT <- file.path(
-  OUT_DIR,
-  paste0(OUT_BASE, ".pdf")
-)
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+
+FILE_STUB <- "sfig12_historical_reactors_500MW"
 
 # ------------------------------------------------------------
 # SETTINGS
@@ -96,6 +143,10 @@ build_density_df <- function(years) {
   )
   
   fits <- Filter(Negate(is.null), fits)
+  
+  if (length(fits) == 0) {
+    stop("No fitted distributions could be estimated.")
+  }
   
   aic_tbl <- tibble(
     Distribution = names(fits),
@@ -172,10 +223,13 @@ build_density_df <- function(years) {
   
   legend_order <- c(
     "Gamma",
-    "Lognormal (best AIC)",
+    "Gamma (best AIC)",
     "Lognormal",
+    "Lognormal (best AIC)",
     "Normal",
-    "Weibull"
+    "Normal (best AIC)",
+    "Weibull",
+    "Weibull (best AIC)"
   )
   
   dens_df$Distribution <- factor(
@@ -258,10 +312,13 @@ base_theme <- theme_minimal(base_size = BASE_SIZE) +
 
 dist_cols <- c(
   "Gamma"                = "forestgreen",
-  "Lognormal (best AIC)" = "blue",
+  "Gamma (best AIC)"    = "forestgreen",
   "Lognormal"            = "blue",
+  "Lognormal (best AIC)" = "blue",
   "Normal"               = "#A020F0",
-  "Weibull"              = "red"
+  "Normal (best AIC)"    = "#A020F0",
+  "Weibull"              = "red",
+  "Weibull (best AIC)"   = "red"
 )
 
 tag_panel <- function(p, tag) {
@@ -293,7 +350,7 @@ years_a <- years_a[is.finite(years_a) & years_a > 0]
 # PANEL B DATA
 # ------------------------------------------------------------
 
-years_b <- read_panel_b_years(FILE)
+years_b <- read_panel_b_years(FILE_IN)
 years_b <- years_b[is.finite(years_b) & years_b > 0]
 
 # ------------------------------------------------------------
@@ -442,12 +499,12 @@ final_plot <- plot_grid(
 
 print(final_plot)
 
-# ------------------------------------------------------------
+# ============================================================
 # SAVE SUPPLEMENTARY FIGURE 12
-# ------------------------------------------------------------
+# ============================================================
 
 ggsave(
-  filename = PNG_OUT,
+  filename = file.path(OUT_DIR, paste0(FILE_STUB, ".png")),
   plot = final_plot,
   width = SAVE_W_MM,
   height = SAVE_H_MM,
@@ -457,13 +514,18 @@ ggsave(
 )
 
 ggsave(
-  filename = PDF_OUT,
+  filename = file.path(OUT_DIR, paste0(FILE_STUB, ".pdf")),
   plot = final_plot,
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
-  device = cairo_pdf,
+  device = grDevices::cairo_pdf,
   bg = "white"
+)
+
+saveRDS(
+  object = final_plot,
+  file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
 )
 
 final_plot
