@@ -2,14 +2,15 @@
 # First-of-a-Kind deployment prospects for small modular reactors
 #
 # Reproduces Extended Data Fig. 5: scenario-bounded median feasibility
-# space for FOAK SMR deployment.
+# range for FOAK SMR deployment.
 #
 # Required input:
 # data/Extended_Data/edfig05_source_data_scenario_space.xlsx
 #
 # Outputs:
-# edfig05_scenario_space.png
-# edfig05_scenario_space.pdf
+# outputs/Extended_Data/Figure_05/edfig05_scenario_space.png
+# outputs/Extended_Data/Figure_05/edfig05_scenario_space.pdf
+# outputs/Extended_Data/Figure_05/edfig05_scenario_space.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -23,20 +24,49 @@ graphics.off()
 
 # ============================================================
 # EXTENDED DATA FIGURE 5
-# SCENARIO-BOUNDED MEDIAN FEASIBILITY SPACE
+# SCENARIO-BOUNDED MEDIAN FEASIBILITY RANGE
 # ============================================================
 
 # ------------------------------------------------------------
 # PATHS
 # ------------------------------------------------------------
 
-FILE <- file.path(
+SOURCE_FILE <- file.path(
   "data",
   "Extended_Data",
   "edfig05_source_data_scenario_space.xlsx"
 )
 
-OUT_DIR <- "."
+find_repo_root <- function(start_dir = getwd(), target_file = SOURCE_FILE) {
+  current <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    if (file.exists(file.path(current, target_file))) {
+      return(current)
+    }
+    
+    parent <- dirname(current)
+    
+    if (identical(parent, current)) {
+      stop(
+        "Could not locate repository root.\n",
+        "Expected to find: ", target_file, "\n",
+        "Start directory was: ",
+        normalizePath(start_dir, winslash = "/", mustWork = TRUE),
+        "\n\nRun this script from inside the GitHub repository, or set the working directory to the repository root."
+      )
+    }
+    
+    current <- parent
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+FILE <- file.path(ROOT_DIR, SOURCE_FILE)
+OUT_DIR <- file.path(ROOT_DIR, "outputs", "Extended_Data", "Figure_05")
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
@@ -62,7 +92,7 @@ AXIS_TITLE_SIZE   <- 7
 LEGEND_TITLE_SIZE <- 7
 LEGEND_TEXT_SIZE  <- 6.5
 
-LEGEND_TITLE <- "Sensitivity-based feasibility space"
+LEGEND_TITLE <- "Sensitivity-based feasibility range"
 
 LEGEND_X_LEFT <- 2019.0
 LEGEND_X_TEXT <- 2020.55
@@ -334,13 +364,67 @@ read_source_data <- function(file) {
   
   nms <- names(raw)
   
-  p10_base_col <- find_col(nms, c("p10_baseline_scenario", "p10_basel", "p10_base", "conservative_baseline_scenario"))
-  p50_base_col <- find_col(nms, c("p50_baseline_scenario", "p50_basel", "p50_base", "median_baseline_scenario"))
-  p90_base_col <- find_col(nms, c("p90_baseline_scenario", "p90_basel", "p90_base", "optimistic_baseline_scenario"))
+  p10_base_col <- find_col(
+    nms,
+    c(
+      "p10_baseline_scenario",
+      "p10_basel",
+      "p10_base",
+      "conservative_baseline_scenario"
+    )
+  )
   
-  p10_accel_col <- find_col(nms, c("p10_accelerated_scenario", "p10_accel", "p10_accelerated", "conservative_accelerated_scenario"))
-  p50_accel_col <- find_col(nms, c("p50_accelerated_scenario", "p50_accel", "p50_accelerated", "median_accelerated_scenario"))
-  p90_accel_col <- find_col(nms, c("p90_accelerated_scenario", "p90_accerlerated_scenario", "p90_accel", "p90_accelerated", "optimistic_accelerated_scenario", "optimistic_accerlerated_scenario"))
+  p50_base_col <- find_col(
+    nms,
+    c(
+      "p50_baseline_scenario",
+      "p50_basel",
+      "p50_base",
+      "median_baseline_scenario"
+    )
+  )
+  
+  p90_base_col <- find_col(
+    nms,
+    c(
+      "p90_baseline_scenario",
+      "p90_basel",
+      "p90_base",
+      "optimistic_baseline_scenario"
+    )
+  )
+  
+  p10_accel_col <- find_col(
+    nms,
+    c(
+      "p10_accelerated_scenario",
+      "p10_accel",
+      "p10_accelerated",
+      "conservative_accelerated_scenario"
+    )
+  )
+  
+  p50_accel_col <- find_col(
+    nms,
+    c(
+      "p50_accelerated_scenario",
+      "p50_accel",
+      "p50_accelerated",
+      "median_accelerated_scenario"
+    )
+  )
+  
+  p90_accel_col <- find_col(
+    nms,
+    c(
+      "p90_accelerated_scenario",
+      "p90_accerlerated_scenario",
+      "p90_accel",
+      "p90_accelerated",
+      "optimistic_accelerated_scenario",
+      "optimistic_accerlerated_scenario"
+    )
+  )
   
   df_base <- raw %>%
     transmute(
@@ -362,14 +446,20 @@ read_source_data <- function(file) {
       total_p90 = as.numeric(.data[[p90_accel_col]])
     )
   
-  list(base = df_base, accel = df_accel)
+  list(
+    base = df_base,
+    accel = df_accel
+  )
 }
 
 prepare_panel_data <- function(df) {
   df <- df %>%
     filter(group == "global") %>%
     mutate(
-      scenario = factor(clean_scenario(scenario), levels = scenario_levels)
+      scenario = factor(
+        clean_scenario(scenario),
+        levels = scenario_levels
+      )
     )
   
   ref_band <- df %>%
@@ -409,14 +499,23 @@ make_panel <- function(panel_data, median_label) {
   p <- ggplot() +
     geom_ribbon(
       data = panel_data$ref_band,
-      aes(x = year, ymin = ymin, ymax = ymax),
+      aes(
+        x = year,
+        ymin = ymin,
+        ymax = ymax
+      ),
       fill = "grey60",
       alpha = 0.5,
       colour = NA
     ) +
     geom_step(
       data = panel_data$counterfactual_lines,
-      aes(x = year, y = value_plot, colour = scenario, group = scenario),
+      aes(
+        x = year,
+        y = value_plot,
+        colour = scenario,
+        group = scenario
+      ),
       linewidth = 0.45,
       alpha = 0.95,
       direction = "hv",
@@ -424,7 +523,10 @@ make_panel <- function(panel_data, median_label) {
     ) +
     geom_step(
       data = panel_data$ref_line,
-      aes(x = year, y = y),
+      aes(
+        x = year,
+        y = y
+      ),
       colour = "black",
       linewidth = 1.3,
       direction = "hv",
@@ -451,7 +553,10 @@ make_panel <- function(panel_data, median_label) {
     ) +
     base_theme()
   
-  add_internal_legend(p, median_label = median_label)
+  add_internal_legend(
+    p,
+    median_label = median_label
+  )
 }
 
 # ------------------------------------------------------------
@@ -463,8 +568,31 @@ source_data <- read_source_data(FILE)
 df_base  <- source_data$base
 df_accel <- source_data$accel
 
-stopifnot(all(c("year", "group", "scenario", "total_p10", "total_p50", "total_p90") %in% names(df_base)))
-stopifnot(all(c("year", "group", "scenario", "total_p10", "total_p50", "total_p90") %in% names(df_accel)))
+stopifnot(
+  all(
+    c(
+      "year",
+      "group",
+      "scenario",
+      "total_p10",
+      "total_p50",
+      "total_p90"
+    ) %in% names(df_base)
+  )
+)
+
+stopifnot(
+  all(
+    c(
+      "year",
+      "group",
+      "scenario",
+      "total_p10",
+      "total_p50",
+      "total_p90"
+    ) %in% names(df_accel)
+  )
+)
 
 panel_base  <- prepare_panel_data(df_base)
 panel_accel <- prepare_panel_data(df_accel)
@@ -521,8 +649,13 @@ ggsave(
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
-  device = cairo_pdf,
+  device = grDevices::cairo_pdf,
   bg = "white"
+)
+
+saveRDS(
+  final_plot,
+  file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
 )
 
 final_plot
