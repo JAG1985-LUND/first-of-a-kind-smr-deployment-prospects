@@ -5,11 +5,12 @@
 # development across the SMR pipeline.
 #
 # Required input:
-# sfig02_source_data_stalled_development.xlsx
+# data/Supplementary_Data/sfig02_source_data_stalled_development.xlsx
 #
 # Outputs:
-# sfig02_stalled_development.png
-# sfig02_stalled_development.pdf
+# outputs/Supplementary_Figures/Figure_02/sfig02_stalled_development.png
+# outputs/Supplementary_Figures/Figure_02/sfig02_stalled_development.pdf
+# outputs/Supplementary_Figures/Figure_02/sfig02_stalled_development.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -30,9 +31,42 @@ graphics.off()
 # PATHS
 # ------------------------------------------------------------
 
-FILE <- "sfig02_source_data_stalled_development.xlsx"
+SOURCE_FILE <- file.path(
+  "data",
+  "Supplementary_Data",
+  "sfig02_source_data_stalled_development.xlsx"
+)
 
-OUT_DIR <- "."
+find_repo_root <- function(start_dir = getwd(), target_file = SOURCE_FILE) {
+  current <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    if (file.exists(file.path(current, target_file))) {
+      return(current)
+    }
+    
+    parent <- dirname(current)
+    
+    if (identical(parent, current)) {
+      stop(
+        "Could not locate repository root.\n",
+        "Expected to find: ", target_file, "\n",
+        "Start directory was: ",
+        normalizePath(start_dir, winslash = "/", mustWork = TRUE),
+        "\n\nRun this script from inside the GitHub repository, or set the working directory to the repository root."
+      )
+    }
+    
+    current <- parent
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+FILE <- file.path(ROOT_DIR, SOURCE_FILE)
+OUT_DIR <- file.path(ROOT_DIR, "outputs", "Supplementary_Figures", "Figure_02")
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
@@ -423,7 +457,13 @@ ggsave(
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
+  device = grDevices::cairo_pdf,
   bg = "white"
+)
+
+saveRDS(
+  p,
+  file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
 )
 
 p
