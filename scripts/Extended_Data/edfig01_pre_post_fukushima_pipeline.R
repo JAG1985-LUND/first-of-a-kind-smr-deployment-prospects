@@ -6,11 +6,12 @@
 # designs and stalled designs.
 #
 # Required input:
-# edfig01_source_data_pre_post_fukushima_pipeline.xlsx
+# data/Extended_Data/edfig01_source_data_pre_post_fukushima_pipeline.xlsx
 #
 # Outputs:
-# edfig01_pre_post_fukushima_pipeline.png
-# edfig01_pre_post_fukushima_pipeline.pdf
+# outputs/Extended_Data/Figure_01/edfig01_pre_post_fukushima_pipeline.png
+# outputs/Extended_Data/Figure_01/edfig01_pre_post_fukushima_pipeline.pdf
+# outputs/Extended_Data/Figure_01/edfig01_pre_post_fukushima_pipeline.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -33,8 +34,42 @@ graphics.off()
 # PATHS
 # ------------------------------------------------------------
 
-FILE <- "edfig01_source_data_pre_post_fukushima_pipeline.xlsx"
-OUT_DIR <- "."
+SOURCE_FILE <- file.path(
+  "data",
+  "Extended_Data",
+  "edfig01_source_data_pre_post_fukushima_pipeline.xlsx"
+)
+
+find_repo_root <- function(start_dir = getwd(), target_file = SOURCE_FILE) {
+  current <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    if (file.exists(file.path(current, target_file))) {
+      return(current)
+    }
+    
+    parent <- dirname(current)
+    
+    if (identical(parent, current)) {
+      stop(
+        "Could not locate repository root.\n",
+        "Expected to find: ", target_file, "\n",
+        "Start directory was: ",
+        normalizePath(start_dir, winslash = "/", mustWork = TRUE),
+        "\n\nRun this script from inside the GitHub repository, or set the working directory to the repository root."
+      )
+    }
+    
+    current <- parent
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+FILE <- file.path(ROOT_DIR, SOURCE_FILE)
+OUT_DIR <- file.path(ROOT_DIR, "outputs", "Extended_Data", "Figure_01")
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
@@ -521,6 +556,11 @@ ggsave(
   units = "mm",
   bg = "white",
   useDingbats = FALSE
+)
+
+saveRDS(
+  p,
+  file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
 )
 
 p
