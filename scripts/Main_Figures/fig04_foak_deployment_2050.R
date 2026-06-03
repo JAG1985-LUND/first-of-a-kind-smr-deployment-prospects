@@ -5,15 +5,15 @@
 # including 2050 sensitivity overlays.
 #
 # Required input:
-# fig04_source_foak_deployment_2050.xlsx
+# data/Main_Figures/fig04_source_foak_deployment_2050.xlsx
 #   - sheet: global_outlook
 #   - sheet: baseline_counterfactuals
 #   - sheet: accelerated_counterfactuals
 #
 # Outputs:
-# fig04_vendor_and_global_foak_outlook_with_2050_sensitivity.png
-# fig04_vendor_and_global_foak_outlook_with_2050_sensitivity.pdf
-# fig04_vendor_and_global_foak_outlook_with_2050_sensitivity.rds
+# outputs/Figure_04/fig04_vendor_and_global_foak_outlook_with_2050_sensitivity.png
+# outputs/Figure_04/fig04_vendor_and_global_foak_outlook_with_2050_sensitivity.pdf
+# outputs/Figure_04/fig04_vendor_and_global_foak_outlook_with_2050_sensitivity.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -37,8 +37,37 @@ graphics.off()
 # PATHS
 # ------------------------------------------------------------
 
-FILE <- "fig04_source_foak_deployment_2050.xlsx"
-OUT_DIR <- "."
+SOURCE_FILE <- file.path("data", "Main_Figures", "fig04_source_foak_deployment_2050.xlsx")
+
+find_repo_root <- function(start_dir = getwd(), target_file = SOURCE_FILE) {
+  current <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    if (file.exists(file.path(current, target_file))) {
+      return(current)
+    }
+    
+    parent <- dirname(current)
+    
+    if (identical(parent, current)) {
+      stop(
+        "Could not locate repository root.\n",
+        "Expected to find: ", target_file, "\n",
+        "Start directory was: ", normalizePath(start_dir, winslash = "/", mustWork = TRUE), "\n\n",
+        "Run this script from inside the GitHub repository, or set the working directory to the repository root."
+      )
+    }
+    
+    current <- parent
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+FILE <- file.path(ROOT_DIR, SOURCE_FILE)
+OUT_DIR <- file.path(ROOT_DIR, "outputs", "Figure_04")
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
@@ -542,8 +571,9 @@ make_sensitivity_row <- function() {
 
 df0 <- standardise_sheet("global_outlook")
 
-dup_acc_p50 <- which(names(df0) == "acc_p50_total")
-if (length(dup_acc_p50) >= 2) {
+dup_acc_p50 <- grep("^acc_p50_total($|_[0-9]+$)", names(df0))
+
+if (length(dup_acc_p50) >= 2 && !"acc_p90_total" %in% names(df0)) {
   names(df0)[dup_acc_p50[2]] <- "acc_p90_total"
 }
 
@@ -816,55 +846,18 @@ p_a <- add_panel_decorations(
 
 # ============================================================
 # PANEL B — GLOBAL FOAK DEPLOYMENT OUTLOOK
-# Uses the original GitHub counterfactual-sheet logic
+# Reference Baseline and Accelerated trajectories with P10-P90 ribbons
+# plus individual 2050 sensitivity overlays
 # ============================================================
 
-df_base_b <- read_counterfactual_sheet(
-  sheet = "baseline_counterfactuals",
-  value_patterns = c("median.*baseline", "baseline.*median", "^p50$", "p50", "median")
-) %>%
-  dplyr::filter(group == "global") %>%
-  dplyr::mutate(scenario = factor(scenario, levels = scenario_levels))
-
-base_ref_b <- df_base_b %>%
-  dplyr::filter(scenario == "reference") %>%
-  dplyr::mutate(label = factor("Baseline scenario", levels = legend_levels))
-
-base_bounds_b <- df_base_b %>%
-  dplyr::filter(scenario != "reference", year >= scenario_start_year) %>%
-  dplyr::group_by(year) %>%
-  dplyr::summarise(
-    ymin = min(value, na.rm = TRUE),
-    ymax = max(value, na.rm = TRUE),
-    .groups = "drop"
+observed_line_b <- df_hist_source %>%
+  dplyr::filter(year >= display_start_year, year <= observed_end_year) %>%
+  dplyr::transmute(
+    year,
+    value,
+    label = factor("Historical operation", levels = legend_levels)
   ) %>%
-  dplyr::mutate(label = factor("Baseline scenario", levels = legend_levels))
-
-df_acc_b <- read_counterfactual_sheet(
-  sheet = "accelerated_counterfactuals",
-  value_patterns = c("median.*accelerated", "accelerated.*median", "^p50$", "p50", "median")
-) %>%
-  dplyr::filter(group == "global") %>%
-  dplyr::mutate(scenario = factor(scenario, levels = scenario_levels))
-
-acc_ref_b <- df_acc_b %>%
-  dplyr::filter(scenario == "reference") %>%
-  dplyr::mutate(label = factor("Accelerated scenario", levels = legend_levels))
-
-acc_bounds_b <- df_acc_b %>%
-  dplyr::filter(scenario != "reference", year >= scenario_start_year) %>%
-  dplyr::group_by(year) %>%
-  dplyr::summarise(
-    ymin = min(value, na.rm = TRUE),
-    ymax = max(value, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  dplyr::mutate(label = factor("Accelerated scenario", levels = legend_levels))
-
-observed_line_b <- base_ref_b %>%
-  dplyr::filter(year <= observed_end_year) %>%
-  dplyr::select(year, value) %>%
-  dplyr::mutate(label = factor("Historical operation", levels = legend_levels))
+  dplyr::arrange(year)
 
 observed_bridge_b <- observed_line_b %>%
   dplyr::slice_tail(n = 1) %>%
@@ -881,11 +874,39 @@ vendor_line_b <- df_global %>%
     label = factor("Vendor-announced targets", levels = legend_levels)
   )
 
-baseline_line_b <- base_ref_b %>%
-  dplyr::filter(year >= scenario_start_year)
+baseline_line_b <- df_global %>%
+  dplyr::filter(year >= scenario_start_year, year <= 2050) %>%
+  dplyr::transmute(
+    year,
+    value = bas_p50,
+    label = factor("Baseline scenario", levels = legend_levels)
+  )
 
-accelerated_line_b <- acc_ref_b %>%
-  dplyr::filter(year >= scenario_start_year)
+accelerated_line_b <- df_global %>%
+  dplyr::filter(year >= scenario_start_year, year <= 2050) %>%
+  dplyr::transmute(
+    year,
+    value = acc_p50,
+    label = factor("Accelerated scenario", levels = legend_levels)
+  )
+
+baseline_ribbon_b <- df_global %>%
+  dplyr::filter(year >= scenario_start_year, year <= 2050) %>%
+  dplyr::transmute(
+    year,
+    ymin = bas_p10,
+    ymax = bas_p90,
+    label = factor("Baseline scenario", levels = legend_levels)
+  )
+
+accelerated_ribbon_b <- df_global %>%
+  dplyr::filter(year >= scenario_start_year, year <= 2050) %>%
+  dplyr::transmute(
+    year,
+    ymin = acc_p10,
+    ymax = acc_p90,
+    label = factor("Accelerated scenario", levels = legend_levels)
+  )
 
 # ------------------------------------------------------------
 # 2050 SENSITIVITY OVERLAY DATA
@@ -939,13 +960,13 @@ sens_overlay <- dplyr::bind_rows(baseline_sens, accelerated_sens) %>%
 
 p_b_core <- ggplot() +
   geom_ribbon(
-    data = base_bounds_b,
+    data = baseline_ribbon_b,
     aes(x = year, ymin = ymin, ymax = ymax, fill = label),
     alpha = ALPHA_BASE,
     colour = NA
   ) +
   geom_ribbon(
-    data = acc_bounds_b,
+    data = accelerated_ribbon_b,
     aes(x = year, ymin = ymin, ymax = ymax, fill = label),
     alpha = ALPHA_ACC,
     colour = NA
