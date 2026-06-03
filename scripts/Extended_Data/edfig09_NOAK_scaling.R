@@ -12,11 +12,12 @@
 # corresponding Accelerated values.
 #
 # Required input:
-# edfig09_source_data_NOAK_scaling.xlsx
+# data/Extended_Data/edfig09_source_data_NOAK_scaling.xlsx
 #
 # Outputs:
-# edfig09_noak_scaling.png
-# edfig09_noak_scaling.pdf
+# outputs/Extended_Data/Figure_09/edfig09_noak_scaling.png
+# outputs/Extended_Data/Figure_09/edfig09_noak_scaling.pdf
+# outputs/Extended_Data/Figure_09/edfig09_noak_scaling.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -39,13 +40,56 @@ graphics.off()
 # PATHS
 # ------------------------------------------------------------
 
-FILE <- "edfig09_source_data_NOAK_scaling.xlsx"
+SOURCE_FILE <- file.path(
+  "data",
+  "Extended_Data",
+  "edfig09_source_data_NOAK_scaling.xlsx"
+)
 
-OUT_DIR <- "."
+find_repo_root <- function(start_dir = getwd(), target_file = SOURCE_FILE) {
+  current <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    if (file.exists(file.path(current, target_file))) {
+      return(current)
+    }
+    
+    parent <- dirname(current)
+    
+    if (identical(parent, current)) {
+      stop(
+        "Could not locate repository root.\n",
+        "Expected to find: ", target_file, "\n",
+        "Start directory was: ",
+        normalizePath(start_dir, winslash = "/", mustWork = TRUE),
+        "\n\nRun this script from inside the GitHub repository, or set the working directory to the repository root."
+      )
+    }
+    
+    current <- parent
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+FILE <- file.path(ROOT_DIR, SOURCE_FILE)
+OUT_DIR <- file.path(ROOT_DIR, "outputs", "Extended_Data", "Figure_09")
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 if (!file.exists(FILE)) {
   stop("Input file not found: ", FILE)
 }
+
+# ------------------------------------------------------------
+# EXPORT SETTINGS
+# ------------------------------------------------------------
+
+SAVE_W_MM <- 180
+SAVE_H_MM <- 150
+SAVE_DPI  <- 600
+
+FILE_STUB <- "edfig09_noak_scaling"
 
 # ============================================================
 # LOAD DATA
@@ -372,7 +416,9 @@ p_a <- ggplot() +
     legend.text = element_text(size = 9),
     legend.key.width = unit(6, "mm"),
     legend.key.height = unit(4, "mm"),
-    plot.margin = margin(4, 10, 4, 120)
+    plot.margin = margin(4, 10, 4, 120),
+    plot.background = element_rect(fill = "white", colour = NA),
+    panel.background = element_rect(fill = "white", colour = NA)
   )
 
 # ============================================================
@@ -679,7 +725,9 @@ p_b <- ggplot() +
     legend.text = element_text(size = 9),
     legend.key.width = unit(6, "mm"),
     legend.key.height = unit(4, "mm"),
-    plot.margin = margin(4, 10, 4, 120)
+    plot.margin = margin(4, 10, 4, 120),
+    plot.background = element_rect(fill = "white", colour = NA),
+    panel.background = element_rect(fill = "white", colour = NA)
   )
 
 # ============================================================
@@ -709,28 +757,28 @@ print(fig_ab)
 # ============================================================
 
 ggsave(
-  file.path(
-    OUT_DIR,
-    "edfig09_noak_scaling.png"
-  ),
-  fig_ab,
-  width = 180,
-  height = 150,
+  filename = file.path(OUT_DIR, paste0(FILE_STUB, ".png")),
+  plot = fig_ab,
+  width = SAVE_W_MM,
+  height = SAVE_H_MM,
   units = "mm",
-  dpi = 600,
+  dpi = SAVE_DPI,
   bg = "white"
 )
 
 ggsave(
-  file.path(
-    OUT_DIR,
-    "edfig09_noak_scaling.pdf"
-  ),
-  fig_ab,
-  width = 180,
-  height = 150,
+  filename = file.path(OUT_DIR, paste0(FILE_STUB, ".pdf")),
+  plot = fig_ab,
+  width = SAVE_W_MM,
+  height = SAVE_H_MM,
   units = "mm",
+  device = grDevices::cairo_pdf,
   bg = "white"
+)
+
+saveRDS(
+  fig_ab,
+  file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
 )
 
 fig_ab
