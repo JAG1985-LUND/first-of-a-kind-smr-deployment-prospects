@@ -5,11 +5,12 @@
 # trajectories.
 #
 # Required input:
-# sfig07_regional_foaks_2050.xlsx
+# data/Supplementary_Data/sfig07_source_data_regional_foaks_2050.xlsx
 #
 # Outputs:
-# sfig07_regional_foaks_2050.png
-# sfig07_regional_foaks_2050.pdf
+# outputs/Supplementary_Figures/Figure_07/sfig07_regional_foaks_2050.png
+# outputs/Supplementary_Figures/Figure_07/sfig07_regional_foaks_2050.pdf
+# outputs/Supplementary_Figures/Figure_07/sfig07_regional_foaks_2050.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -23,30 +24,90 @@ rm(list = ls())
 graphics.off()
 
 # ============================================================
-# SUPPLEMENTARY FIGURE 7 — REGIONAL FOAK SMR DEPLOYMENT
-# Baseline panels: a–f
-# Accelerated panels: g–l
+# SUPPLEMENTARY FIGURE 7
+# REGIONAL FOAK SMR DEPLOYMENT
+# Baseline panels: a-f
+# Accelerated panels: g-l
 # ============================================================
 
-# ----------------------------
-# PATHS
-# ----------------------------
+# ------------------------------------------------------------
+# FIND REPOSITORY ROOT
+# ------------------------------------------------------------
 
-FILE <- "sfig07_regional_foaks_2050.xlsx"
-
-OUT_DIR <- "."
-
-if (!file.exists(FILE)) {
-  stop("Input file not found: ", FILE)
+find_repo_root <- function(start_dir = getwd()) {
+  current_dir <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    has_git     <- dir.exists(file.path(current_dir, ".git"))
+    has_data    <- dir.exists(file.path(current_dir, "data"))
+    has_scripts <- dir.exists(file.path(current_dir, "scripts"))
+    
+    if (has_git && has_data && has_scripts) {
+      return(current_dir)
+    }
+    
+    parent_dir <- dirname(current_dir)
+    
+    if (identical(parent_dir, current_dir)) {
+      stop(
+        "Repository root not found. Run this script from inside the ",
+        "first-of-a-kind-smr-deployment-prospects repository."
+      )
+    }
+    
+    current_dir <- parent_dir
+  }
 }
 
-# ----------------------------
+ROOT_DIR <- find_repo_root()
+
+# ------------------------------------------------------------
+# PATHS
+# ------------------------------------------------------------
+
+FILE_CANDIDATES <- c(
+  "sfig07_source_data_regional_foaks_2050.xlsx",
+  "sfig07_regional_foaks_2050.xlsx"
+)
+
+FILE_IN_CANDIDATES <- file.path(
+  ROOT_DIR,
+  "data",
+  "Supplementary_Data",
+  FILE_CANDIDATES
+)
+
+FILE_IN <- FILE_IN_CANDIDATES[file.exists(FILE_IN_CANDIDATES)][1]
+
+if (is.na(FILE_IN)) {
+  stop(
+    "Input file not found. Checked: ",
+    paste(FILE_IN_CANDIDATES, collapse = " | ")
+  )
+}
+
+FILE <- basename(FILE_IN)
+
+OUT_DIR <- file.path(
+  ROOT_DIR,
+  "outputs",
+  "Supplementary_Figures",
+  "Figure_07"
+)
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+
+# ------------------------------------------------------------
 # SETTINGS
-# ----------------------------
+# ------------------------------------------------------------
 
 region_order <- c(
-  "North America", "Europe", "OECD-Asia",
-  "Russia", "China", "RoW"
+  "North America",
+  "Europe",
+  "OECD-Asia",
+  "Russia",
+  "China",
+  "RoW"
 )
 
 region_cols <- c(
@@ -71,24 +132,35 @@ SAVE_DPI  <- 600
 
 FILE_STUB <- "sfig07_regional_foaks_2050"
 
-hide_zero <- function(x) ifelse(x == 0, "", x)
+hide_zero <- function(x) {
+  ifelse(x == 0, "", x)
+}
 
-# ----------------------------
-# LOAD AND CLEAN
-# ----------------------------
+# ============================================================
+# LOAD AND CLEAN DATA
+# ============================================================
 
-df_raw <- read_excel(FILE)
+df_raw <- read_excel(FILE_IN)
 
 if (ncol(df_raw) < 8) {
-  stop("Expected at least 8 columns: year, region, bas_p10, bas_p50, bas_p90, acc_p10, acc_p50, acc_p90")
+  stop(
+    "Expected at least 8 columns: year, region, bas_p10, bas_p50, bas_p90, ",
+    "acc_p10, acc_p50, acc_p90. Available columns are: ",
+    paste(names(df_raw), collapse = ", ")
+  )
 }
 
 df <- df_raw[, 1:8]
 
 names(df) <- c(
-  "year", "region",
-  "bas_p10", "bas_p50", "bas_p90",
-  "acc_p10", "acc_p50", "acc_p90"
+  "year",
+  "region",
+  "bas_p10",
+  "bas_p50",
+  "bas_p90",
+  "acc_p10",
+  "acc_p50",
+  "acc_p90"
 )
 
 df <- df %>%
@@ -115,9 +187,9 @@ df <- df %>%
     Region = factor(Region, levels = region_order)
   )
 
-# ----------------------------
+# ============================================================
 # LONG FORMAT
-# ----------------------------
+# ============================================================
 
 df_long <- df %>%
   pivot_longer(
@@ -133,7 +205,10 @@ df_long <- df %>%
       "acc" = "Accelerated"
     ),
     Quantile = paste0("P", quantile),
-    Scenario = factor(Scenario, levels = c("Baseline", "Accelerated"))
+    Scenario = factor(
+      Scenario,
+      levels = c("Baseline", "Accelerated")
+    )
   ) %>%
   select(Year, Region, Scenario, Quantile, value) %>%
   pivot_wider(
@@ -152,13 +227,13 @@ df_long <- df %>%
   ungroup() %>%
   filter(Year >= X_MIN, Year <= 2050)
 
-# ----------------------------
+# ============================================================
 # STEP RIBBON HELPER
-# ----------------------------
+# ============================================================
 
 stepify_ribbon <- function(d) {
-  
-  d <- d %>% arrange(Year)
+  d <- d %>%
+    arrange(Year)
   
   if (nrow(d) <= 1) {
     return(d)
@@ -175,9 +250,9 @@ stepify_ribbon <- function(d) {
   )
 }
 
-# ----------------------------
+# ============================================================
 # PANEL FUNCTION
-# ----------------------------
+# ============================================================
 
 make_panel <- function(region_name, scenario_name, tag_txt,
                        show_y_title = FALSE,
@@ -188,6 +263,13 @@ make_panel <- function(region_name, scenario_name, tag_txt,
       Region == region_name,
       Scenario == scenario_name
     )
+  
+  if (nrow(d) == 0) {
+    stop(
+      "No data found for region = ", region_name,
+      " and scenario = ", scenario_name
+    )
+  }
   
   d_ribbon <- stepify_ribbon(d)
   
@@ -237,7 +319,9 @@ make_panel <- function(region_name, scenario_name, tag_txt,
           hjust = 0.5,
           margin = margin(b = 5)
         ),
-        plot.margin = margin(4, 12, 4, 5)
+        plot.margin = margin(4, 12, 4, 5),
+        plot.background = element_rect(fill = "white", colour = NA),
+        panel.background = element_rect(fill = "white", colour = NA)
       )
   ) +
     draw_plot_label(
@@ -247,13 +331,13 @@ make_panel <- function(region_name, scenario_name, tag_txt,
       hjust = 0,
       vjust = 1,
       size = 12,
-      fontface = "plain"
+      fontface = "bold"
     )
 }
 
-# ----------------------------
+# ============================================================
 # BUILD PANELS
-# ----------------------------
+# ============================================================
 
 p_a <- make_panel("North America", "Baseline",    "a", TRUE,  FALSE)
 p_b <- make_panel("Europe",        "Baseline",    "b", FALSE, FALSE)
@@ -285,9 +369,9 @@ fig_s07 <- plot_grid(
 
 print(fig_s07)
 
-# ----------------------------
+# ============================================================
 # SAVE SUPPLEMENTARY FIGURE 7
-# ----------------------------
+# ============================================================
 
 ggsave(
   filename = file.path(OUT_DIR, paste0(FILE_STUB, ".png")),
@@ -305,8 +389,13 @@ ggsave(
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
-  device = cairo_pdf,
+  device = grDevices::cairo_pdf,
   bg = "white"
+)
+
+saveRDS(
+  object = fig_s07,
+  file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
 )
 
 fig_s07
