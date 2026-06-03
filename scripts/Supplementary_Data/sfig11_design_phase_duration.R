@@ -5,11 +5,12 @@
 # duration and conceptual design start year.
 #
 # Required input:
-# sfig11_design_phase_duration.xlsx
+# data/Supplementary_Data/sfig11_source_data_design_phase_duration.xlsx
 #
 # Outputs:
-# sfig11_design_phase_duration.png
-# sfig11_design_phase_duration.pdf
+# outputs/Supplementary_Figures/Figure_11/sfig11_design_phase_duration.png
+# outputs/Supplementary_Figures/Figure_11/sfig11_design_phase_duration.pdf
+# outputs/Supplementary_Figures/Figure_11/sfig11_design_phase_duration.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -27,16 +28,71 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
+# FIND REPOSITORY ROOT
+# ------------------------------------------------------------
+
+find_repo_root <- function(start_dir = getwd()) {
+  current_dir <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    has_git     <- dir.exists(file.path(current_dir, ".git"))
+    has_data    <- dir.exists(file.path(current_dir, "data"))
+    has_scripts <- dir.exists(file.path(current_dir, "scripts"))
+    
+    if (has_git && has_data && has_scripts) {
+      return(current_dir)
+    }
+    
+    parent_dir <- dirname(current_dir)
+    
+    if (identical(parent_dir, current_dir)) {
+      stop(
+        "Repository root not found. Run this script from inside the ",
+        "first-of-a-kind-smr-deployment-prospects repository."
+      )
+    }
+    
+    current_dir <- parent_dir
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+# ------------------------------------------------------------
 # PATHS
 # ------------------------------------------------------------
 
-FILE <- "sfig11_design_phase_duration.xlsx"
+FILE_CANDIDATES <- c(
+  "sfig11_source_data_design_phase_duration.xlsx",
+  "sfig11_design_phase_duration.xlsx"
+)
 
-OUT_DIR <- "."
+FILE_IN_CANDIDATES <- file.path(
+  ROOT_DIR,
+  "data",
+  "Supplementary_Data",
+  FILE_CANDIDATES
+)
 
-if (!file.exists(FILE)) {
-  stop("Input file not found: ", FILE)
+FILE_IN <- FILE_IN_CANDIDATES[file.exists(FILE_IN_CANDIDATES)][1]
+
+if (is.na(FILE_IN)) {
+  stop(
+    "Input file not found. Checked: ",
+    paste(FILE_IN_CANDIDATES, collapse = " | ")
+  )
 }
+
+FILE <- basename(FILE_IN)
+
+OUT_DIR <- file.path(
+  ROOT_DIR,
+  "outputs",
+  "Supplementary_Figures",
+  "Figure_11"
+)
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
 # ------------------------------------------------------------
 # EXPORT SETTINGS
@@ -114,11 +170,11 @@ legend_shapes <- c(
   "BWRX-300"               = 16
 )
 
-# ------------------------------------------------------------
+# ============================================================
 # LOAD DATA
-# ------------------------------------------------------------
+# ============================================================
 
-raw <- readxl::read_excel(FILE)
+raw <- readxl::read_excel(FILE_IN)
 
 required_cols <- c(
   "design",
@@ -129,23 +185,28 @@ required_cols <- c(
 missing_cols <- setdiff(required_cols, names(raw))
 
 if (length(missing_cols) > 0) {
-  stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
+  stop(
+    "Missing required columns: ",
+    paste(missing_cols, collapse = ", "),
+    "\nAvailable columns are: ",
+    paste(names(raw), collapse = ", ")
+  )
 }
 
 plot_df <- raw %>%
-  dplyr::transmute(
+  transmute(
     design = as.character(design),
     cd_start_year = suppressWarnings(as.numeric(cd_start_year)),
     total_duration = suppressWarnings(as.numeric(total_duration))
   ) %>%
-  dplyr::filter(
+  filter(
     !is.na(design),
     !is.na(cd_start_year),
     !is.na(total_duration)
   ) %>%
-  dplyr::mutate(
+  mutate(
     design = factor(design, levels = design_order),
-    smr_label = dplyr::case_when(
+    smr_label = case_when(
       as.character(design) == "KLT-40S"  ~ "KLT-40S (Operational)",
       as.character(design) == "RITM-200" ~ "RITM-200 (Operational)",
       as.character(design) == "HTR-PM"   ~ "HTR-PM (Operational)",
@@ -153,15 +214,15 @@ plot_df <- raw %>%
     ),
     smr_label = factor(smr_label, levels = legend_order)
   ) %>%
-  dplyr::arrange(design)
+  arrange(design)
 
 if (nrow(plot_df) == 0) {
   stop("No usable rows found in source data.")
 }
 
-# ------------------------------------------------------------
+# ============================================================
 # PLOT
-# ------------------------------------------------------------
+# ============================================================
 
 p <- ggplot(
   plot_df,
@@ -248,9 +309,9 @@ p <- ggplot(
 
 print(p)
 
-# ------------------------------------------------------------
+# ============================================================
 # SAVE SUPPLEMENTARY FIGURE 11
-# ------------------------------------------------------------
+# ============================================================
 
 ggsave(
   filename = file.path(OUT_DIR, paste0(FILE_STUB, ".png")),
@@ -268,8 +329,13 @@ ggsave(
   width = SAVE_W_MM,
   height = SAVE_H_MM,
   units = "mm",
-  bg = "white",
-  useDingbats = FALSE
+  device = grDevices::cairo_pdf,
+  bg = "white"
+)
+
+saveRDS(
+  object = p,
+  file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
 )
 
 p
