@@ -10,11 +10,14 @@
 # projections are shown.
 #
 # Required input:
-# edfig07_source_data_market_readiness.xlsx
+# data/Extended_Data/edfig07_source_data_market_readiness.xlsx
+#   - sheet: kang_2026_trl
+#   - sheet: NEA_market_readiness
 #
 # Outputs:
-# edfig07_market_readiness.png
-# edfig07_market_readiness.pdf
+# outputs/Extended_Data/Figure_07/edfig07_market_readiness.png
+# outputs/Extended_Data/Figure_07/edfig07_market_readiness.pdf
+# outputs/Extended_Data/Figure_07/edfig07_market_readiness.rds
 
 suppressPackageStartupMessages({
   library(readxl)
@@ -37,15 +40,63 @@ graphics.off()
 # PATHS
 # ------------------------------------------------------------
 
-FILE <- "edfig07_source_data_market_readiness.xlsx"
+SOURCE_FILE <- file.path(
+  "data",
+  "Extended_Data",
+  "edfig07_source_data_market_readiness.xlsx"
+)
+
+find_repo_root <- function(start_dir = getwd(), target_file = SOURCE_FILE) {
+  current <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+  
+  repeat {
+    if (file.exists(file.path(current, target_file))) {
+      return(current)
+    }
+    
+    parent <- dirname(current)
+    
+    if (identical(parent, current)) {
+      stop(
+        "Could not locate repository root.\n",
+        "Expected to find: ", target_file, "\n",
+        "Start directory was: ",
+        normalizePath(start_dir, winslash = "/", mustWork = TRUE),
+        "\n\nRun this script from inside the GitHub repository, or set the working directory to the repository root."
+      )
+    }
+    
+    current <- parent
+  }
+}
+
+ROOT_DIR <- find_repo_root()
+
+FILE <- file.path(ROOT_DIR, SOURCE_FILE)
+OUT_DIR <- file.path(ROOT_DIR, "outputs", "Extended_Data", "Figure_07")
+
+dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
+
+if (!file.exists(FILE)) {
+  stop("Input file not found: ", FILE)
+}
 
 SHEET_A <- "kang_2026_trl"
 SHEET_B <- "NEA_market_readiness"
 
-OUT_DIR <- "."
+available_sheets <- readxl::excel_sheets(FILE)
 
-if (!file.exists(FILE)) {
-  stop("Input file not found: ", FILE)
+required_sheets <- c(SHEET_A, SHEET_B)
+
+missing_sheets <- required_sheets[!required_sheets %in% available_sheets]
+
+if (length(missing_sheets) > 0) {
+  stop(
+    "Missing required sheet(s):\n",
+    paste(missing_sheets, collapse = "\n"),
+    "\n\nAvailable sheets are:\n",
+    paste(available_sheets, collapse = "\n")
+  )
 }
 
 # ------------------------------------------------------------
@@ -104,12 +155,12 @@ pick_col <- function(nms, patterns) {
       ignore.case = TRUE,
       value = TRUE
     )
-
+    
     if (length(hit) > 0) {
       return(hit[1])
     }
   }
-
+  
   NA_character_
 }
 
@@ -784,6 +835,14 @@ ggsave(
   units = "mm",
   device = grDevices::cairo_pdf,
   bg = "white"
+)
+
+saveRDS(
+  fig_combined,
+  file = file.path(
+    OUT_DIR,
+    paste0(FILE_STUB, ".rds")
+  )
 )
 
 fig_combined
