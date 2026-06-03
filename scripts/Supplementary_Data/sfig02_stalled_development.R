@@ -28,48 +28,60 @@ graphics.off()
 # ============================================================
 
 # ------------------------------------------------------------
-# PATHS
+# FIND REPOSITORY ROOT
 # ------------------------------------------------------------
 
-SOURCE_FILE <- file.path(
-  "data",
-  "Supplementary_Data",
-  "sfig02_source_data_stalled_development.xlsx"
-)
-
-find_repo_root <- function(start_dir = getwd(), target_file = SOURCE_FILE) {
-  current <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
+find_repo_root <- function(start_dir = getwd()) {
+  current_dir <- normalizePath(start_dir, winslash = "/", mustWork = TRUE)
   
   repeat {
-    if (file.exists(file.path(current, target_file))) {
-      return(current)
+    has_git     <- dir.exists(file.path(current_dir, ".git"))
+    has_data    <- dir.exists(file.path(current_dir, "data"))
+    has_scripts <- dir.exists(file.path(current_dir, "scripts"))
+    
+    if (has_git && has_data && has_scripts) {
+      return(current_dir)
     }
     
-    parent <- dirname(current)
+    parent_dir <- dirname(current_dir)
     
-    if (identical(parent, current)) {
+    if (identical(parent_dir, current_dir)) {
       stop(
-        "Could not locate repository root.\n",
-        "Expected to find: ", target_file, "\n",
-        "Start directory was: ",
-        normalizePath(start_dir, winslash = "/", mustWork = TRUE),
-        "\n\nRun this script from inside the GitHub repository, or set the working directory to the repository root."
+        "Repository root not found. Run this script from inside the ",
+        "first-of-a-kind-smr-deployment-prospects repository."
       )
     }
     
-    current <- parent
+    current_dir <- parent_dir
   }
 }
 
 ROOT_DIR <- find_repo_root()
 
-FILE <- file.path(ROOT_DIR, SOURCE_FILE)
-OUT_DIR <- file.path(ROOT_DIR, "outputs", "Supplementary_Figures", "Figure_02")
+# ------------------------------------------------------------
+# PATHS
+# ------------------------------------------------------------
+
+FILE <- "sfig02_source_data_stalled_development.xlsx"
+
+FILE_IN <- file.path(
+  ROOT_DIR,
+  "data",
+  "Supplementary_Data",
+  FILE
+)
+
+OUT_DIR <- file.path(
+  ROOT_DIR,
+  "outputs",
+  "Supplementary_Figures",
+  "Figure_02"
+)
 
 dir.create(OUT_DIR, recursive = TRUE, showWarnings = FALSE)
 
-if (!file.exists(FILE)) {
-  stop("Input file not found: ", FILE)
+if (!file.exists(FILE_IN)) {
+  stop("Input file not found: ", FILE_IN)
 }
 
 # ------------------------------------------------------------
@@ -134,7 +146,7 @@ clean_names_local <- function(x) {
 # LOAD AND STANDARDISE DATA
 # ============================================================
 
-dat <- read_excel(FILE) %>%
+dat <- read_excel(FILE_IN) %>%
   rename_with(clean_names_local)
 
 required_cols <- c(
@@ -147,10 +159,7 @@ required_cols <- c(
   "dd_start"
 )
 
-missing_cols <- setdiff(
-  required_cols,
-  names(dat)
-)
+missing_cols <- setdiff(required_cols, names(dat))
 
 if (length(missing_cols) > 0) {
   stop(
@@ -176,8 +185,8 @@ dat <- dat %>%
   mutate(
     last_phase = case_when(
       grepl("conceptual", phase_clean) ~ "Conceptual design",
-      grepl("basic",      phase_clean) ~ "Basic design",
-      grepl("detailed",   phase_clean) ~ "Detailed design",
+      grepl("basic", phase_clean)      ~ "Basic design",
+      grepl("detailed", phase_clean)   ~ "Detailed design",
       TRUE ~ NA_character_
     ),
     last_phase_idx = unname(phase_index_map[last_phase]),
@@ -228,13 +237,8 @@ phase_long <- dat %>%
       "bd_start" = "Basic design",
       "dd_start" = "Detailed design"
     ),
-    Phase_name = factor(
-      Phase_name,
-      levels = phase_levels
-    ),
-    phase_idx = unname(
-      phase_index_map[as.character(Phase_name)]
-    )
+    Phase_name = factor(Phase_name, levels = phase_levels),
+    phase_idx = unname(phase_index_map[as.character(Phase_name)])
   ) %>%
   filter(
     !is.na(last_phase_idx),
@@ -246,11 +250,7 @@ phase_long <- dat %>%
 # ============================================================
 
 phase_seg <- phase_long %>%
-  arrange(
-    smr,
-    phase_idx,
-    start_year
-  ) %>%
+  arrange(smr, phase_idx, start_year) %>%
   group_by(smr) %>%
   mutate(
     end_year_raw = lead(start_year),
@@ -309,27 +309,18 @@ order_top <- dat %>%
 
 phase_seg <- phase_seg %>%
   mutate(
-    smr = factor(
-      smr,
-      levels = rev(order_top)
-    )
+    smr = factor(smr, levels = rev(order_top))
   )
 
 outcome_markers <- outcome_markers %>%
   mutate(
-    smr = factor(
-      smr,
-      levels = rev(order_top)
-    )
+    smr = factor(smr, levels = rev(order_top))
   )
 
 label_df <- dat %>%
   filter(smr %in% order_top) %>%
   mutate(
-    smr = factor(
-      smr,
-      levels = rev(order_top)
-    ),
+    smr = factor(smr, levels = rev(order_top)),
     Outcome = factor(
       Outcome,
       levels = c(
@@ -412,18 +403,18 @@ p <- ggplot(phase_seg, aes(y = smr)) +
   theme_minimal(base_size = 11) +
   theme(
     panel.background = element_rect(fill = "white", colour = NA),
-    plot.background = element_rect(fill = "white", colour = NA),
-    panel.grid = element_blank(),
-    axis.line.x = element_line(colour = "grey35", linewidth = 0.3),
-    axis.line.y = element_line(colour = "grey35", linewidth = 0.3),
-    axis.ticks = element_blank(),
-    axis.text.x = element_text(colour = "grey35"),
-    axis.text.y = element_blank(),
-    axis.title.x = element_text(colour = "black"),
-    legend.position = "right",
-    legend.title = element_text(colour = "black"),
-    legend.text = element_text(colour = "black"),
-    plot.margin = margin(5.5, 5.5, 5.5, 95)
+    plot.background  = element_rect(fill = "white", colour = NA),
+    panel.grid       = element_blank(),
+    axis.line.x      = element_line(colour = "grey35", linewidth = 0.3),
+    axis.line.y      = element_line(colour = "grey35", linewidth = 0.3),
+    axis.ticks       = element_blank(),
+    axis.text.x      = element_text(colour = "grey35"),
+    axis.text.y      = element_blank(),
+    axis.title.x     = element_text(colour = "black"),
+    legend.position  = "right",
+    legend.title     = element_text(colour = "black"),
+    legend.text      = element_text(colour = "black"),
+    plot.margin      = margin(5.5, 5.5, 5.5, 95)
   ) +
   guides(
     colour = guide_legend(order = 1),
@@ -462,7 +453,7 @@ ggsave(
 )
 
 saveRDS(
-  p,
+  object = p,
   file = file.path(OUT_DIR, paste0(FILE_STUB, ".rds"))
 )
 
