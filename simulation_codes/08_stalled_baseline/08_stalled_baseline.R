@@ -16,7 +16,7 @@
 #   4) failures_stalled_develop_bas
 #
 # OUTPUT:
-#   outputs/simulation_outputs/stalled_development_baseline_sensitivity/
+#   outputs/Simulation_Outputs/08_stalled_baseline/stalled_baseline_output_final/
 # ============================================================
 
 suppressPackageStartupMessages({
@@ -29,10 +29,107 @@ suppressPackageStartupMessages({
   library(tidyr)
 })
 
-# -------------------- PATHS --------------------
-P_INPUT <- "data/Simulation_Inputs/stalled_development_sensitivity_inputs_baseline.xlsx"
+rm(list = ls())
+graphics.off()
 
-OUTDIR <- "outputs/simulation_outputs/stalled_development_baseline_sensitivity/"
+# -------------------- REPOSITORY ROOT --------------------
+normalise_path <- function(x) {
+  normalizePath(x, winslash = "/", mustWork = FALSE)
+}
+
+get_script_path <- function() {
+  cmd_args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- "--file="
+  hit <- grep(file_arg, cmd_args, value = TRUE)
+  
+  if (length(hit) > 0) {
+    return(normalise_path(sub(file_arg, "", hit[1])))
+  }
+  
+  for (frame in sys.frames()) {
+    if (!is.null(frame$ofile)) {
+      return(normalise_path(frame$ofile))
+    }
+  }
+  
+  NA_character_
+}
+
+parent_dirs <- function(start_dir) {
+  dirs <- character()
+  d <- normalise_path(start_dir)
+  
+  repeat {
+    dirs <- c(dirs, d)
+    parent <- dirname(d)
+    
+    if (identical(parent, d)) {
+      break
+    }
+    
+    d <- parent
+  }
+  
+  unique(dirs)
+}
+
+find_repo_root <- function(start_dirs = getwd()) {
+  target_file <- file.path(
+    "data",
+    "Simulation_Inputs",
+    "stalled_development_sensitivity_inputs_baseline.xlsx"
+  )
+  
+  start_dirs <- unique(start_dirs)
+  start_dirs <- start_dirs[!is.na(start_dirs)]
+  
+  for (start_dir in start_dirs) {
+    if (!dir.exists(start_dir)) {
+      next
+    }
+    
+    for (d in parent_dirs(start_dir)) {
+      if (file.exists(file.path(d, target_file))) {
+        return(normalise_path(d))
+      }
+    }
+  }
+  
+  stop(
+    paste0(
+      "Repository root not found.\n\n",
+      "Expected to find:\n",
+      target_file, "\n\n",
+      "Current working directory:\n",
+      getwd()
+    ),
+    call. = FALSE
+  )
+}
+
+SCRIPT_PATH <- get_script_path()
+SCRIPT_DIR  <- if (!is.na(SCRIPT_PATH)) dirname(SCRIPT_PATH) else getwd()
+ROOT_DIR <- find_repo_root(c(getwd(), SCRIPT_DIR))
+PATH_MODE <- "github_repo_layout"
+
+# -------------------- PATHS --------------------
+P_INPUT <- file.path(
+  ROOT_DIR,
+  "data",
+  "Simulation_Inputs",
+  "stalled_development_sensitivity_inputs_baseline.xlsx"
+)
+
+OUTDIR <- file.path(
+  ROOT_DIR,
+  "outputs",
+  "Simulation_Outputs",
+  "08_stalled_baseline",
+  "stalled_baseline_output_final"
+)
+
+P_INPUT <- normalise_path(P_INPUT)
+OUTDIR <- normalise_path(OUTDIR)
 
 # -------------------- GLOBALS --------------------
 CUT_YEAR   <- 2025L
@@ -73,15 +170,8 @@ dir.create(OUTDIR, recursive = TRUE, showWarnings = FALSE)
 
 stamp <- format(Sys.time(), "%Y%m%d_%H%M")
 
-RUN_DIR <- file.path(
-  OUTDIR,
-  paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_", VERSION, "_", stamp)
-)
-
-LATEST_DIR <- file.path(
-  OUTDIR,
-  paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_", VERSION, "_latest")
-)
+RUN_DIR <- file.path(OUTDIR, paste0("run_", SIMS, "_", stamp))
+LATEST_DIR <- file.path(OUTDIR, "latest")
 
 dir.create(RUN_DIR, recursive = TRUE, showWarnings = FALSE)
 dir.create(LATEST_DIR, recursive = TRUE, showWarnings = FALSE)
@@ -743,7 +833,11 @@ run_metadata <- tibble::tibble(
     "sims",
     "cut_year",
     "next_floor",
+    "path_mode",
+    "repository_root",
+    "script_path",
     "input_workbook",
+    "output_directory",
     "sheet_stalled_development_bas_sample",
     "sheet_phase_rules_stalled_develop_bas",
     "sheet_design_phase_failures",
@@ -760,7 +854,11 @@ run_metadata <- tibble::tibble(
     as.character(SIMS),
     as.character(CUT_YEAR),
     as.character(NEXT_FLOOR),
+    PATH_MODE,
+    ROOT_DIR,
+    ifelse(is.na(SCRIPT_PATH), NA_character_, SCRIPT_PATH),
     P_INPUT,
+    OUTDIR,
     "stalled_development_bas_sample",
     "phase_rules_stalled_develop_bas",
     "design_phase_failures",
@@ -775,12 +873,12 @@ run_metadata <- tibble::tibble(
 # -------------------- EXPORT EXCEL --------------------
 xlsx_path_run <- file.path(
   RUN_DIR,
-  paste0("SMR55_ProjectProgression_", RUN_TAG, "_", MODEL_TAG, "_", VERSION, "_", stamp, ".xlsx")
+  paste0("stalled_baseline_mc_", SIMS, "_", stamp, ".xlsx")
 )
 
 xlsx_path_latest <- file.path(
   LATEST_DIR,
-  paste0("SMR55_ProjectProgression_", RUN_TAG, "_", MODEL_TAG, "_", VERSION, "_latest.xlsx")
+  "stalled_baseline_mc_latest.xlsx"
 )
 
 xlsx_contents <- list(
@@ -794,19 +892,19 @@ writexl::write_xlsx(xlsx_contents, path = xlsx_path_run)
 writexl::write_xlsx(xlsx_contents, path = xlsx_path_latest)
 
 # -------------------- SAVE R OBJECTS --------------------
-saveRDS(mc_baseline, file = file.path(RUN_DIR, paste0("mc_baseline_", MODEL_TAG, "_", VERSION, "_", stamp, ".rds")))
-saveRDS(summary_quantiles, file = file.path(RUN_DIR, paste0("summary_quantiles_", MODEL_TAG, "_", VERSION, "_", stamp, ".rds")))
-saveRDS(summary_descriptives, file = file.path(RUN_DIR, paste0("summary_descriptives_", MODEL_TAG, "_", VERSION, "_", stamp, ".rds")))
-saveRDS(smr_master, file = file.path(RUN_DIR, paste0("smr_master_", MODEL_TAG, "_", VERSION, "_", stamp, ".rds")))
-saveRDS(phase_params, file = file.path(RUN_DIR, paste0("phase_params_", MODEL_TAG, "_", VERSION, "_", stamp, ".rds")))
-saveRDS(run_metadata, file = file.path(RUN_DIR, paste0("run_metadata_", MODEL_TAG, "_", VERSION, "_", stamp, ".rds")))
+saveRDS(mc_baseline, file = file.path(RUN_DIR, "mc_baseline.rds"))
+saveRDS(summary_quantiles, file = file.path(RUN_DIR, "summary_quantiles.rds"))
+saveRDS(summary_descriptives, file = file.path(RUN_DIR, "summary_descriptives.rds"))
+saveRDS(smr_master, file = file.path(RUN_DIR, "smr_master.rds"))
+saveRDS(phase_params, file = file.path(RUN_DIR, "phase_params.rds"))
+saveRDS(run_metadata, file = file.path(RUN_DIR, "run_metadata.rds"))
 
-saveRDS(mc_baseline, file = file.path(LATEST_DIR, paste0("mc_baseline_", MODEL_TAG, "_", VERSION, "_latest.rds")))
-saveRDS(summary_quantiles, file = file.path(LATEST_DIR, paste0("summary_quantiles_", MODEL_TAG, "_", VERSION, "_latest.rds")))
-saveRDS(summary_descriptives, file = file.path(LATEST_DIR, paste0("summary_descriptives_", MODEL_TAG, "_", VERSION, "_latest.rds")))
-saveRDS(smr_master, file = file.path(LATEST_DIR, paste0("smr_master_", MODEL_TAG, "_", VERSION, "_latest.rds")))
-saveRDS(phase_params, file = file.path(LATEST_DIR, paste0("phase_params_", MODEL_TAG, "_", VERSION, "_latest.rds")))
-saveRDS(run_metadata, file = file.path(LATEST_DIR, paste0("run_metadata_", MODEL_TAG, "_", VERSION, "_latest.rds")))
+saveRDS(mc_baseline, file = file.path(LATEST_DIR, "mc_baseline_latest.rds"))
+saveRDS(summary_quantiles, file = file.path(LATEST_DIR, "summary_quantiles_latest.rds"))
+saveRDS(summary_descriptives, file = file.path(LATEST_DIR, "summary_descriptives_latest.rds"))
+saveRDS(smr_master, file = file.path(LATEST_DIR, "smr_master_latest.rds"))
+saveRDS(phase_params, file = file.path(LATEST_DIR, "phase_params_latest.rds"))
+saveRDS(run_metadata, file = file.path(LATEST_DIR, "run_metadata_latest.rds"))
 
 model_bundle <- list(
   mc_baseline = mc_baseline,
@@ -826,12 +924,12 @@ model_bundle <- list(
 
 saveRDS(
   model_bundle,
-  file = file.path(RUN_DIR, paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_", VERSION, "_bundle_", stamp, ".rds"))
+  file = file.path(RUN_DIR, "bundle.rds")
 )
 
 saveRDS(
   model_bundle,
-  file = file.path(LATEST_DIR, paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_", VERSION, "_bundle_latest.rds"))
+  file = file.path(LATEST_DIR, "bundle_latest.rds")
 )
 
 save(
@@ -848,7 +946,7 @@ save(
   param_map,
   design_list,
   run_metadata,
-  file = file.path(RUN_DIR, paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_", VERSION, "_workspace_", stamp, ".RData"))
+  file = file.path(RUN_DIR, "workspace.RData")
 )
 
 save(
@@ -865,7 +963,7 @@ save(
   param_map,
   design_list,
   run_metadata,
-  file = file.path(LATEST_DIR, paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_", VERSION, "_workspace_latest.RData"))
+  file = file.path(LATEST_DIR, "workspace_latest.RData")
 )
 
 # -------------------- POST-RUN SUMMARY SWEEP --------------------
@@ -972,25 +1070,11 @@ baseline_2050_global <- compute_2050(mc_baseline_full)
 baseline_2050_oecd   <- compute_2050(mc_baseline_full, "oecd")
 baseline_2050_region <- compute_2050(mc_baseline_full, "region")
 
-master_sweep_path_run <- file.path(
-  RUN_DIR,
-  paste0("SMR55_MASTER_SUMMARY_SWEEP_", RUN_TAG, "_", MODEL_TAG, "_", VERSION, "_", stamp, ".xlsx")
-)
+master_sweep_path_run <- file.path(RUN_DIR, "master_summary_sweep.xlsx")
+master_sweep_path_latest <- file.path(LATEST_DIR, "master_summary_sweep_latest.xlsx")
 
-master_sweep_path_latest <- file.path(
-  LATEST_DIR,
-  paste0("SMR55_MASTER_SUMMARY_SWEEP_", RUN_TAG, "_", MODEL_TAG, "_", VERSION, "_latest.xlsx")
-)
-
-snapshot_2050_path_run <- file.path(
-  RUN_DIR,
-  paste0("SMR55_2050_SNAPSHOT_", RUN_TAG, "_", MODEL_TAG, "_", VERSION, "_", stamp, ".xlsx")
-)
-
-snapshot_2050_path_latest <- file.path(
-  LATEST_DIR,
-  paste0("SMR55_2050_SNAPSHOT_", RUN_TAG, "_", MODEL_TAG, "_", VERSION, "_latest.xlsx")
-)
+snapshot_2050_path_run <- file.path(RUN_DIR, "snapshot_2050.xlsx")
+snapshot_2050_path_latest <- file.path(LATEST_DIR, "snapshot_2050_latest.xlsx")
 
 write_xlsx(
   list(
@@ -1047,8 +1131,8 @@ cat("Master summary sweep (run):\n", master_sweep_path_run, "\n")
 cat("Master summary sweep (latest):\n", master_sweep_path_latest, "\n")
 cat("2050 snapshot (run):\n", snapshot_2050_path_run, "\n")
 cat("2050 snapshot (latest):\n", snapshot_2050_path_latest, "\n")
-cat("Bundle RDS saved:\n", file.path(LATEST_DIR, paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_", VERSION, "_bundle_latest.rds")), "\n")
-cat("Workspace RData saved:\n", file.path(LATEST_DIR, paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_", VERSION, "_workspace_latest.RData")), "\n")
+cat("Bundle RDS saved:\n", file.path(LATEST_DIR, "bundle_latest.rds"), "\n")
+cat("Workspace RData saved:\n", file.path(LATEST_DIR, "workspace_latest.RData"), "\n")
 cat("Repository note: for a quick smoke test, set SIMS <- 25L.\n")
 cat("==========================================================================\n\n")
 
@@ -1058,5 +1142,5 @@ print(master_sweep_path_run)
 print(master_sweep_path_latest)
 print(snapshot_2050_path_run)
 print(snapshot_2050_path_latest)
-print(file.path(LATEST_DIR, paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_", VERSION, "_bundle_latest.rds")))
-print(file.path(LATEST_DIR, paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_", VERSION, "_workspace_latest.RData")))
+print(file.path(LATEST_DIR, "bundle_latest.rds"))
+print(file.path(LATEST_DIR, "workspace_latest.RData"))
