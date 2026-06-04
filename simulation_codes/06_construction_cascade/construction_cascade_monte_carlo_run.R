@@ -3,14 +3,12 @@
 # CONSTRUCTION CASCADE SENSITIVITY
 # FAIL-GATED • FULL CLEAN SCRIPT • LOGNORMAL EVERYWHERE
 #
-# GITHUB / MARTA VERSION:
-#   • Input workbook must be in the same folder as this script
-#   • Outputs are written to the current working folder
-#   • Full manuscript-scale run uses 10,000 simulations
-#   • For a quick smoke test, temporarily set SIMS <- 25L
+# GITHUB VERSION:
+#   • 10,000 simulations for the full manuscript-scale run
+#   • For a quick repository smoke test, set SIMS <- 25L
 #
 # INPUT WORKBOOK:
-#   construction_cascade_sensitivity_inputs.xlsx
+#   data/Simulation_Inputs/construction_cascade_sensitivity_inputs.xlsx
 #
 # REQUIRED SHEETS:
 #   1) smr_design_inputs
@@ -19,7 +17,7 @@
 #   4) construction_cascade_failures
 #
 # OUTPUT:
-#   ./SMR55_ProjectProgression_Outputs_CONSTRUCTION_CASCADE_SENSITIVITY/
+#   outputs/Simulation_Outputs/06_construction_cascade/construction_cascade_output_final/
 #
 # NOTE:
 #   • LOGNORMAL EVERYWHERE for duration sampling
@@ -35,12 +33,111 @@ suppressPackageStartupMessages({
   library(tidyr)
 })
 
+rm(list = ls())
+graphics.off()
+
+# -------------------- REPOSITORY ROOT --------------------
+
+normalise_path <- function(x) {
+  normalizePath(x, winslash = "/", mustWork = FALSE)
+}
+
+get_script_path <- function() {
+  cmd_args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- "--file="
+  hit <- grep(file_arg, cmd_args, value = TRUE)
+  
+  if (length(hit) > 0) {
+    return(normalise_path(sub(file_arg, "", hit[1])))
+  }
+  
+  for (frame in sys.frames()) {
+    if (!is.null(frame$ofile)) {
+      return(normalise_path(frame$ofile))
+    }
+  }
+  
+  NA_character_
+}
+
+parent_dirs <- function(start_dir) {
+  dirs <- character()
+  d <- normalise_path(start_dir)
+  
+  repeat {
+    dirs <- c(dirs, d)
+    parent <- dirname(d)
+    
+    if (identical(parent, d)) {
+      break
+    }
+    
+    d <- parent
+  }
+  
+  unique(dirs)
+}
+
+find_repo_root <- function(start_dirs = getwd()) {
+  target_file <- file.path(
+    "data",
+    "Simulation_Inputs",
+    "construction_cascade_sensitivity_inputs.xlsx"
+  )
+  
+  start_dirs <- unique(start_dirs)
+  start_dirs <- start_dirs[!is.na(start_dirs)]
+  
+  for (start_dir in start_dirs) {
+    if (!dir.exists(start_dir)) {
+      next
+    }
+    
+    for (d in parent_dirs(start_dir)) {
+      if (file.exists(file.path(d, target_file))) {
+        return(normalise_path(d))
+      }
+    }
+  }
+  
+  stop(
+    paste0(
+      "Repository root not found.\n\n",
+      "Expected to find:\n",
+      target_file, "\n\n",
+      "Current working directory:\n",
+      getwd()
+    ),
+    call. = FALSE
+  )
+}
+
+SCRIPT_PATH <- get_script_path()
+SCRIPT_DIR  <- if (!is.na(SCRIPT_PATH)) dirname(SCRIPT_PATH) else getwd()
+
+ROOT_DIR <- find_repo_root(c(getwd(), SCRIPT_DIR))
+
+PATH_MODE <- "github_repo_layout"
+
 # -------------------- PATHS --------------------
-FILE <- "construction_cascade_sensitivity_inputs.xlsx"
 
-P_INPUT <- FILE
+P_INPUT <- file.path(
+  ROOT_DIR,
+  "data",
+  "Simulation_Inputs",
+  "construction_cascade_sensitivity_inputs.xlsx"
+)
 
-OUTDIR <- "SMR55_ProjectProgression_Outputs_CONSTRUCTION_CASCADE_SENSITIVITY"
+OUTDIR <- file.path(
+  ROOT_DIR,
+  "outputs",
+  "Simulation_Outputs",
+  "06_construction_cascade",
+  "construction_cascade_output_final"
+)
+
+P_INPUT <- normalise_path(P_INPUT)
+OUTDIR  <- normalise_path(OUTDIR)
 
 # -------------------- GLOBALS --------------------
 CUT_YEAR   <- 2025L
@@ -65,7 +162,7 @@ required_sheets <- c(
   "construction_cascade_failures"
 )
 
-available_sheets <- excel_sheets(P_INPUT)
+available_sheets <- readxl::excel_sheets(P_INPUT)
 missing_sheets <- setdiff(required_sheets, available_sheets)
 
 if (length(missing_sheets) > 0) {
@@ -80,18 +177,11 @@ dir.create(OUTDIR, recursive = TRUE, showWarnings = FALSE)
 
 stamp <- format(Sys.time(), "%Y%m%d_%H%M")
 
-RUN_DIR <- file.path(
-  OUTDIR,
-  paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_", stamp)
-)
+RUN_DIR    <- file.path(OUTDIR, paste0("run_", stamp))
+LATEST_DIR <- file.path(OUTDIR, "latest")
 
-LATEST_DIR <- file.path(
-  OUTDIR,
-  paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_latest")
-)
-
-dir.create(RUN_DIR, showWarnings = FALSE, recursive = TRUE)
-dir.create(LATEST_DIR, showWarnings = FALSE, recursive = TRUE)
+dir.create(RUN_DIR, recursive = TRUE, showWarnings = FALSE)
+dir.create(LATEST_DIR, recursive = TRUE, showWarnings = FALSE)
 
 # -------------------- STANDARDISERS --------------------
 clean_names_simple <- function(x) {
@@ -271,7 +361,7 @@ if (length(miss_sc) > 0) {
 }
 
 for (sc in req_scens) {
-  mm <- setdiff(req_phases, dpf %>% filter(scenario == sc) %>% pull(phase) %>% unique())
+  mm <- setdiff(req_phases, dpf %>% dplyr::filter(scenario == sc) %>% dplyr::pull(phase) %>% unique())
   if (length(mm) > 0) {
     stop("Missing phases in design_phase_failures for ", sc, ": ", paste(mm, collapse = ", "))
   }
@@ -308,8 +398,8 @@ smr_master <- smr55_specs %>%
   dplyr::left_join(fail_rates, by = "design")
 
 miss_fail <- smr_master %>%
-  filter(is.na(lic_surv_baseline) | is.na(lic_surv_accel) | is.na(con_surv_baseline) | is.na(con_surv_accel)) %>%
-  pull(design)
+  dplyr::filter(is.na(lic_surv_baseline) | is.na(lic_surv_accel) | is.na(con_surv_baseline) | is.na(con_surv_accel)) %>%
+  dplyr::pull(design)
 
 if (length(miss_fail) > 0) {
   stop("Missing failure rates for designs: ", paste(unique(miss_fail), collapse = ", "))
@@ -809,16 +899,27 @@ run_metadata <- tibble::tibble(
   )
 )
 
-# -------------------- EXPORT EXCEL --------------------
-xlsx_path_run <- file.path(
-  RUN_DIR,
-  paste0("SMR55_ProjectProgression_", RUN_TAG, "_", MODEL_TAG, "_", stamp, ".xlsx")
+run_metadata <- dplyr::bind_rows(
+  run_metadata,
+  tibble::tibble(
+    item = c(
+      "path_mode",
+      "repository_root",
+      "script_path",
+      "output_directory"
+    ),
+    value = c(
+      PATH_MODE,
+      ROOT_DIR,
+      ifelse(is.na(SCRIPT_PATH), NA_character_, SCRIPT_PATH),
+      OUTDIR
+    )
+  )
 )
 
-xlsx_path_latest <- file.path(
-  LATEST_DIR,
-  paste0("SMR55_ProjectProgression_", RUN_TAG, "_", MODEL_TAG, "_latest.xlsx")
-)
+# -------------------- EXPORT EXCEL --------------------
+xlsx_path_run    <- file.path(RUN_DIR, "mc_outputs.xlsx")
+xlsx_path_latest <- file.path(LATEST_DIR, "mc_outputs_latest.xlsx")
 
 xlsx_contents <- list(
   baseline_draws = mc_baseline_55,
@@ -834,46 +935,46 @@ writexl::write_xlsx(xlsx_contents, path = xlsx_path_latest)
 # -------------------- SAVE R OBJECTS --------------------
 saveRDS(
   mc_baseline_55,
-  file = file.path(RUN_DIR, paste0("mc_baseline_55_", MODEL_TAG, "_", stamp, ".rds"))
+  file = file.path(RUN_DIR, "mc_baseline_55.rds")
 )
 
 saveRDS(
   mc_accel_55,
-  file = file.path(RUN_DIR, paste0("mc_accel_55_", MODEL_TAG, "_", stamp, ".rds"))
+  file = file.path(RUN_DIR, "mc_accel_55.rds")
 )
 
 saveRDS(
   summary_quantiles,
-  file = file.path(RUN_DIR, paste0("summary_quantiles_", MODEL_TAG, "_", stamp, ".rds"))
+  file = file.path(RUN_DIR, "summary_quantiles.rds")
 )
 
 saveRDS(
   summary_descriptives,
-  file = file.path(RUN_DIR, paste0("summary_descriptives_", MODEL_TAG, "_", stamp, ".rds"))
+  file = file.path(RUN_DIR, "summary_descriptives.rds")
 )
 
 saveRDS(
   smr_master,
-  file = file.path(RUN_DIR, paste0("smr_master_", MODEL_TAG, "_", stamp, ".rds"))
+  file = file.path(RUN_DIR, "smr_master.rds")
 )
 
 saveRDS(
   phase_params,
-  file = file.path(RUN_DIR, paste0("phase_params_", MODEL_TAG, "_", stamp, ".rds"))
+  file = file.path(RUN_DIR, "phase_params.rds")
 )
 
 saveRDS(
   run_metadata,
-  file = file.path(RUN_DIR, paste0("run_metadata_", MODEL_TAG, "_", stamp, ".rds"))
+  file = file.path(RUN_DIR, "run_metadata.rds")
 )
 
-saveRDS(mc_baseline_55,       file = file.path(LATEST_DIR, paste0("mc_baseline_55_", MODEL_TAG, "_latest.rds")))
-saveRDS(mc_accel_55,          file = file.path(LATEST_DIR, paste0("mc_accel_55_", MODEL_TAG, "_latest.rds")))
-saveRDS(summary_quantiles,    file = file.path(LATEST_DIR, paste0("summary_quantiles_", MODEL_TAG, "_latest.rds")))
-saveRDS(summary_descriptives, file = file.path(LATEST_DIR, paste0("summary_descriptives_", MODEL_TAG, "_latest.rds")))
-saveRDS(smr_master,           file = file.path(LATEST_DIR, paste0("smr_master_", MODEL_TAG, "_latest.rds")))
-saveRDS(phase_params,         file = file.path(LATEST_DIR, paste0("phase_params_", MODEL_TAG, "_latest.rds")))
-saveRDS(run_metadata,         file = file.path(LATEST_DIR, paste0("run_metadata_", MODEL_TAG, "_latest.rds")))
+saveRDS(mc_baseline_55,       file = file.path(LATEST_DIR, "mc_baseline_55_latest.rds"))
+saveRDS(mc_accel_55,          file = file.path(LATEST_DIR, "mc_accel_55_latest.rds"))
+saveRDS(summary_quantiles,    file = file.path(LATEST_DIR, "summary_quantiles_latest.rds"))
+saveRDS(summary_descriptives, file = file.path(LATEST_DIR, "summary_descriptives_latest.rds"))
+saveRDS(smr_master,           file = file.path(LATEST_DIR, "smr_master_latest.rds"))
+saveRDS(phase_params,         file = file.path(LATEST_DIR, "phase_params_latest.rds"))
+saveRDS(run_metadata,         file = file.path(LATEST_DIR, "run_metadata_latest.rds"))
 
 model_bundle <- list(
   mc_baseline_55 = mc_baseline_55,
@@ -893,12 +994,12 @@ model_bundle <- list(
 
 saveRDS(
   model_bundle,
-  file = file.path(RUN_DIR, paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_bundle_", stamp, ".rds"))
+  file = file.path(RUN_DIR, "bundle.rds")
 )
 
 saveRDS(
   model_bundle,
-  file = file.path(LATEST_DIR, paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_bundle_latest.rds"))
+  file = file.path(LATEST_DIR, "bundle_latest.rds")
 )
 
 save(
@@ -915,7 +1016,7 @@ save(
   param_map,
   design_list,
   run_metadata,
-  file = file.path(RUN_DIR, paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_workspace_", stamp, ".RData"))
+  file = file.path(RUN_DIR, "workspace.RData")
 )
 
 save(
@@ -932,18 +1033,18 @@ save(
   param_map,
   design_list,
   run_metadata,
-  file = file.path(LATEST_DIR, paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_workspace_latest.RData"))
+  file = file.path(LATEST_DIR, "workspace_latest.RData")
 )
 
 # -------------------- POST-RUN SUMMARY SWEEP --------------------
-mc_baseline <- mc_baseline_55 %>% left_join(smr55_specs, by = "design")
-mc_accel    <- mc_accel_55    %>% left_join(smr55_specs, by = "design")
+mc_baseline <- mc_baseline_55 %>% dplyr::left_join(smr55_specs, by = "design")
+mc_accel    <- mc_accel_55    %>% dplyr::left_join(smr55_specs, by = "design")
 design_summary <- summary_quantiles
 
 build_ts <- function(mc_obj, grouping_vars = NULL) {
   
   df <- mc_obj %>%
-    mutate(
+    dplyr::mutate(
       foak_year_int = floor(foak_year),
       success = !is.na(foak_year_int)
     )
@@ -951,28 +1052,28 @@ build_ts <- function(mc_obj, grouping_vars = NULL) {
   results <- lapply(YEARS, function(y) {
     
     tmp <- df %>%
-      filter(success, foak_year_int <= y)
+      dplyr::filter(success, foak_year_int <= y)
     
     if (!is.null(grouping_vars)) {
       tmp <- tmp %>%
-        group_by(sim, across(all_of(grouping_vars))) %>%
-        summarise(total = n(), .groups = "drop")
+        dplyr::group_by(sim, dplyr::across(dplyr::all_of(grouping_vars))) %>%
+        dplyr::summarise(total = dplyr::n(), .groups = "drop")
     } else {
       tmp <- tmp %>%
-        group_by(sim) %>%
-        summarise(total = n(), .groups = "drop")
+        dplyr::group_by(sim) %>%
+        dplyr::summarise(total = dplyr::n(), .groups = "drop")
     }
     
     tmp$year <- y
     tmp
   })
   
-  ts_full <- bind_rows(results)
+  ts_full <- dplyr::bind_rows(results)
   
   if (!is.null(grouping_vars)) {
     ts_full %>%
-      group_by(year, across(all_of(grouping_vars))) %>%
-      summarise(
+      dplyr::group_by(year, dplyr::across(dplyr::all_of(grouping_vars))) %>%
+      dplyr::summarise(
         P10 = safe_q(total, 0.10),
         P50 = safe_q(total, 0.50),
         P90 = safe_q(total, 0.90),
@@ -981,8 +1082,8 @@ build_ts <- function(mc_obj, grouping_vars = NULL) {
       )
   } else {
     ts_full %>%
-      group_by(year) %>%
-      summarise(
+      dplyr::group_by(year) %>%
+      dplyr::summarise(
         P10 = safe_q(total, 0.10),
         P50 = safe_q(total, 0.50),
         P90 = safe_q(total, 0.90),
@@ -995,22 +1096,22 @@ build_ts <- function(mc_obj, grouping_vars = NULL) {
 compute_2050 <- function(mc_obj, grouping_vars = NULL) {
   
   df <- mc_obj %>%
-    mutate(success_2050 = !is.na(foak_year) & foak_year <= 2050)
+    dplyr::mutate(success_2050 = !is.na(foak_year) & foak_year <= 2050)
   
   if (!is.null(grouping_vars)) {
     df <- df %>%
-      group_by(sim, across(all_of(grouping_vars))) %>%
-      summarise(total = sum(success_2050), .groups = "drop")
+      dplyr::group_by(sim, dplyr::across(dplyr::all_of(grouping_vars))) %>%
+      dplyr::summarise(total = sum(success_2050), .groups = "drop")
   } else {
     df <- df %>%
-      group_by(sim) %>%
-      summarise(total = sum(success_2050), .groups = "drop")
+      dplyr::group_by(sim) %>%
+      dplyr::summarise(total = sum(success_2050), .groups = "drop")
   }
   
   if (!is.null(grouping_vars)) {
     df %>%
-      group_by(across(-c(sim, total))) %>%
-      summarise(
+      dplyr::group_by(dplyr::across(-c(sim, total))) %>%
+      dplyr::summarise(
         P10 = safe_q(total, 0.10),
         P50 = safe_q(total, 0.50),
         P90 = safe_q(total, 0.90),
@@ -1019,7 +1120,7 @@ compute_2050 <- function(mc_obj, grouping_vars = NULL) {
       )
   } else {
     df %>%
-      summarise(
+      dplyr::summarise(
         P10 = safe_q(total, 0.10),
         P50 = safe_q(total, 0.50),
         P90 = safe_q(total, 0.90),
@@ -1052,25 +1153,10 @@ accelerated_2050_oecd   <- compute_2050(mc_accel, "oecd")
 baseline_2050_region    <- compute_2050(mc_baseline, "region")
 accelerated_2050_region <- compute_2050(mc_accel, "region")
 
-master_sweep_path_run <- file.path(
-  RUN_DIR,
-  paste0("SMR55_MASTER_SUMMARY_SWEEP_", RUN_TAG, "_", MODEL_TAG, "_", stamp, ".xlsx")
-)
-
-master_sweep_path_latest <- file.path(
-  LATEST_DIR,
-  paste0("SMR55_MASTER_SUMMARY_SWEEP_", RUN_TAG, "_", MODEL_TAG, "_latest.xlsx")
-)
-
-snapshot_2050_path_run <- file.path(
-  RUN_DIR,
-  paste0("SMR55_2050_SNAPSHOT_", RUN_TAG, "_", MODEL_TAG, "_", stamp, ".xlsx")
-)
-
-snapshot_2050_path_latest <- file.path(
-  LATEST_DIR,
-  paste0("SMR55_2050_SNAPSHOT_", RUN_TAG, "_", MODEL_TAG, "_latest.xlsx")
-)
+master_sweep_path_run    <- file.path(RUN_DIR, "master_summary_sweep.xlsx")
+master_sweep_path_latest <- file.path(LATEST_DIR, "master_summary_sweep_latest.xlsx")
+snapshot_2050_path_run   <- file.path(RUN_DIR, "snapshot_2050.xlsx")
+snapshot_2050_path_latest <- file.path(LATEST_DIR, "snapshot_2050_latest.xlsx")
 
 write_xlsx(
   list(
@@ -1142,8 +1228,8 @@ cat("Master summary sweep (run):\n", master_sweep_path_run, "\n")
 cat("Master summary sweep (latest):\n", master_sweep_path_latest, "\n")
 cat("2050 snapshot (run):\n", snapshot_2050_path_run, "\n")
 cat("2050 snapshot (latest):\n", snapshot_2050_path_latest, "\n")
-cat("Bundle RDS saved:\n", file.path(LATEST_DIR, paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_bundle_latest.rds")), "\n")
-cat("Workspace RData saved:\n", file.path(LATEST_DIR, paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_workspace_latest.RData")), "\n")
+cat("Bundle RDS saved:\n", file.path(LATEST_DIR, "bundle_latest.rds"), "\n")
+cat("Workspace RData saved:\n", file.path(LATEST_DIR, "workspace_latest.RData"), "\n")
 cat("For a quick smoke test, temporarily set SIMS <- 25L.\n")
 cat("==========================================================================\n\n")
 
@@ -1153,5 +1239,5 @@ print(master_sweep_path_run)
 print(master_sweep_path_latest)
 print(snapshot_2050_path_run)
 print(snapshot_2050_path_latest)
-print(file.path(LATEST_DIR, paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_bundle_latest.rds")))
-print(file.path(LATEST_DIR, paste0("SMR55_", RUN_TAG, "_", MODEL_TAG, "_workspace_latest.RData")))
+print(file.path(LATEST_DIR, "bundle_latest.rds"))
+print(file.path(LATEST_DIR, "workspace_latest.RData"))
