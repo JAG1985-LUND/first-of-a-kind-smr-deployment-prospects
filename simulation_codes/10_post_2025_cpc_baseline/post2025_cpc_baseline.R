@@ -1,14 +1,20 @@
 # ============================================================
 # FUTURE DESIGN ADDITIONS — PROJECT PROGRESSION MONTE CARLO
-# BASELINE ONLY • CURRENT PHASE COMPLETION SENSITIVITY
+# MODULE 10: POST-2025 CURRENT PHASE COMPLETION SENSITIVITY
+# BASELINE ONLY
+# FAIL-GATED • FULL CLEAN SCRIPT • LOGNORMAL EVERYWHERE
 #
-# GitHub version
+# GitHub / submission version
 #
-# Required input workbook in the same folder as this script:
-# post-2025_current_phase_completion_baseline_sensitivity.xlsx
+# Required input workbook:
+# data/Simulation_Inputs/post-2025_current_phase_completion_baseline_sensitivity.xlsx
+#
+# Clean output directory:
+# outputs/Simulation_Outputs/10_post2025_cpc_baseline/post2025_cpc_baseline_output_final/
 #
 # Current-phase completion logic:
-# Conceptual design cannot fail in the baseline phase-completion run.
+# Conceptual design survival is forced to 1.0 in the baseline
+# current-phase-completion run.
 # ============================================================
 
 suppressPackageStartupMessages({
@@ -21,10 +27,101 @@ suppressPackageStartupMessages({
   library(tidyr)
 })
 
-# -------------------- PATHS --------------------
-P_INPUT <- "post-2025_current_phase_completion_baseline_sensitivity.xlsx"
+# -------------------- REPOSITORY ROOT --------------------
+normalise_path <- function(x) {
+  normalizePath(x, winslash = "/", mustWork = FALSE)
+}
 
-OUTDIR <- "."
+get_script_path <- function() {
+  cmd_args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- "--file="
+  hit <- grep(file_arg, cmd_args, value = TRUE)
+  
+  if (length(hit) > 0) {
+    return(normalise_path(sub(file_arg, "", hit[[1]])))
+  }
+  
+  for (frame in sys.frames()) {
+    if (!is.null(frame$ofile)) {
+      return(normalise_path(frame$ofile))
+    }
+  }
+  
+  NA_character_
+}
+
+parent_dirs <- function(start_dir) {
+  dirs <- character()
+  d <- normalise_path(start_dir)
+  
+  repeat {
+    dirs <- c(dirs, d)
+    parent <- dirname(d)
+    
+    if (identical(parent, d)) break
+    
+    d <- parent
+  }
+  
+  unique(dirs)
+}
+
+find_repo_root <- function(start_dirs = getwd()) {
+  target_file <- file.path(
+    "data",
+    "Simulation_Inputs",
+    "post-2025_current_phase_completion_baseline_sensitivity.xlsx"
+  )
+  
+  start_dirs <- unique(start_dirs)
+  start_dirs <- start_dirs[!is.na(start_dirs)]
+  
+  for (start_dir in start_dirs) {
+    if (!dir.exists(start_dir)) next
+    
+    for (d in parent_dirs(start_dir)) {
+      if (file.exists(file.path(d, target_file))) {
+        return(normalise_path(d))
+      }
+    }
+  }
+  
+  stop(
+    paste0(
+      "Repository root not found.\n",
+      "Expected to find:\n",
+      target_file,
+      "\nCurrent working directory:\n",
+      getwd()
+    ),
+    call. = FALSE
+  )
+}
+
+SCRIPT_PATH <- get_script_path()
+SCRIPT_DIR <- if (!is.na(SCRIPT_PATH)) dirname(SCRIPT_PATH) else getwd()
+
+ROOT_DIR <- find_repo_root(c(getwd(), SCRIPT_DIR))
+PATH_MODE <- "github_repo_layout"
+
+# -------------------- PATHS --------------------
+P_INPUT <- file.path(
+  ROOT_DIR,
+  "data",
+  "Simulation_Inputs",
+  "post-2025_current_phase_completion_baseline_sensitivity.xlsx"
+)
+
+OUTDIR <- file.path(
+  ROOT_DIR,
+  "outputs",
+  "Simulation_Outputs",
+  "10_post2025_cpc_baseline",
+  "post2025_cpc_baseline_output_final"
+)
+
+P_INPUT <- normalise_path(P_INPUT)
+OUTDIR <- normalise_path(OUTDIR)
 
 # -------------------- GLOBALS --------------------
 SIMS       <- 10000L
@@ -42,11 +139,23 @@ if (!dir.exists(OUTDIR)) dir.create(OUTDIR, recursive = TRUE, showWarnings = FAL
 if (!dir.exists(OUTDIR)) stop("OUTDIR could not be created: ", OUTDIR)
 
 stamp   <- format(Sys.time(), "%Y%m%d_%H%M")
-RUN_TAG <- paste0("POST2025_BAS_CPC_MC", SIMS, "_", stamp)
-RUN_DIR <- file.path(OUTDIR, RUN_TAG)
+RUN_TAG <- paste0("post2025_cpc_baseline_mc_", SIMS)
+
+RUN_DIR <- file.path(
+  OUTDIR,
+  paste0("run_", SIMS, "_", stamp)
+)
+
+LATEST_DIR <- file.path(
+  OUTDIR,
+  "latest"
+)
 
 dir.create(RUN_DIR, recursive = TRUE, showWarnings = FALSE)
-if (!dir.exists(RUN_DIR)) stop("RUN_DIR could not be created: ", RUN_DIR)
+dir.create(LATEST_DIR, recursive = TRUE, showWarnings = FALSE)
+
+if (!dir.exists(RUN_DIR)) stop("RUN_DIR could not be created: ", RUN_DIR, call. = FALSE)
+if (!dir.exists(LATEST_DIR)) stop("LATEST_DIR could not be created: ", LATEST_DIR, call. = FALSE)
 
 # -------------------- HELPERS --------------------
 clean_names_simple <- function(x){
@@ -78,7 +187,7 @@ safe_mean <- function(x){
 
 std_country <- function(x){
   x <- trimws(as.character(x))
-  case_when(
+  dplyr::case_when(
     x %in% c("US", "U.S.", "U.S.A.", "USA", "United States of America") ~ "United States",
     x %in% c("Russian Federation") ~ "Russia",
     x %in% c("ROW", "RoW", "Rest of World", "Rest-of-World") ~ "RoW",
@@ -88,7 +197,7 @@ std_country <- function(x){
 
 region_from_country <- function(country){
   country <- std_country(country)
-  case_when(
+  dplyr::case_when(
     country %in% c("Canada", "United States") ~ "North America",
     country == "Europe" ~ "Europe",
     country == "OECD Asia" ~ "OECD Asia",
@@ -106,7 +215,7 @@ oecd_from_country <- function(country){
 
 std_cooling <- function(x){
   x <- tolower(trimws(as.character(x)))
-  case_when(
+  dplyr::case_when(
     x %in% c("gas", "gas_cooled", "gas-cooled") ~ "gas",
     x %in% c("metal", "metal_cooled", "metal-cooled", "lead", "sodium", "lead_bismuth", "lead-bismuth", "liquid_metal", "liquid-metal") ~ "metal",
     x %in% c("salt", "salt_cooled", "salt-cooled", "molten_salt", "molten-salt", "molten salt") ~ "salt",
@@ -153,14 +262,14 @@ dpf <- read_excel(P_INPUT, sheet = "design_phase_failures")
 names(dpf) <- clean_names_simple(names(dpf))
 
 dpf <- dpf %>%
-  transmute(
+  dplyr::transmute(
     phase = as_phase(phase),
     scenario = as_scen(scenario),
     k = suppressWarnings(as.numeric(failures_k)),
     N = suppressWarnings(as.numeric(total_n))
   ) %>%
-  filter(scenario == SCENARIO) %>%
-  mutate(
+  dplyr::filter(scenario == SCENARIO) %>%
+  dplyr::mutate(
     p_fail_mean = (k + 0.5) / (N + 1),
     p_surv_mean = clamp01(1 - p_fail_mean)
   )
@@ -177,18 +286,18 @@ fail_rates <- read_excel(P_INPUT, sheet = "failures_region_country")
 names(fail_rates) <- clean_names_simple(names(fail_rates))
 
 fail_rates <- fail_rates %>%
-  transmute(
+  dplyr::transmute(
     country = std_country(country),
     oecd = if ("oecd" %in% names(.)) as.logical(oecd) else oecd_from_country(country),
     licensing_failure_baseline    = clamp01(baseline_licensing_failure),
     construction_failure_baseline = clamp01(baseline_construction_failure)
   ) %>%
-  mutate(
+  dplyr::mutate(
     region = region_from_country(country),
     lic_surv_baseline = clamp01(1 - licensing_failure_baseline),
     con_surv_baseline = clamp01(1 - construction_failure_baseline)
   ) %>%
-  select(country, region, oecd, lic_surv_baseline, con_surv_baseline)
+  dplyr::select(country, region, oecd, lic_surv_baseline, con_surv_baseline)
 
 if (any(is.na(fail_rates$country))) stop("Missing country values in failures_region_country sheet")
 if (any(is.na(fail_rates$region))) stop("Missing derived region values in failures_region_country sheet")
@@ -198,23 +307,23 @@ country_rates <- read_excel(P_INPUT, sheet = "additions_region_country")
 names(country_rates) <- clean_names_simple(names(country_rates))
 
 country_rates <- country_rates %>%
-  transmute(
+  dplyr::transmute(
     country = std_country(country),
     oecd = if ("oecd" %in% names(.)) as.logical(oecd) else oecd_from_country(country),
     baseline = suppressWarnings(as.numeric(baseline))
   ) %>%
-  filter(
+  dplyr::filter(
     !is.na(country),
     !country %in% c("Global", "OECD", "Non-OECD")
   ) %>%
-  mutate(region = region_from_country(country)) %>%
-  select(country, region, oecd, baseline)
+  dplyr::mutate(region = region_from_country(country)) %>%
+  dplyr::select(country, region, oecd, baseline)
 
 # -------------------- ALIGN COUNTRY SPACE --------------------
 valid_countries <- intersect(country_rates$country, fail_rates$country)
 
-country_rates <- country_rates %>% filter(country %in% valid_countries)
-fail_rates    <- fail_rates %>% filter(country %in% valid_countries)
+country_rates <- country_rates %>% dplyr::filter(country %in% valid_countries)
+fail_rates    <- fail_rates %>% dplyr::filter(country %in% valid_countries)
 
 if (length(valid_countries) == 0) stop("No overlapping country values across additions_region_country and failures_region_country sheets")
 
@@ -223,7 +332,7 @@ rules_add <- read_excel(P_INPUT, sheet = "phase_rules_additions")
 names(rules_add) <- clean_names_simple(names(rules_add))
 
 rules_add <- rules_add %>%
-  transmute(
+  dplyr::transmute(
     scenario = as_scen(scenario),
     phase = if ("phase" %in% names(.)) as.character(phase) else "additions",
     start_year = suppressWarnings(as.integer(start_year)),
@@ -234,7 +343,7 @@ rules_add <- rules_add %>%
     retain_share_2050 = if ("retain_share_2050" %in% names(.)) suppressWarnings(as.numeric(retain_share_2050)) else NA_real_,
     rule = if ("rule" %in% names(.)) as.character(rule) else NA_character_
   ) %>%
-  filter(scenario == SCENARIO)
+  dplyr::filter(scenario == SCENARIO)
 
 if (nrow(rules_add) == 0) stop("No baseline row found in phase_rules_additions sheet")
 
@@ -243,39 +352,39 @@ cooling_shares <- read_excel(P_INPUT, sheet = "design_additions_cooling")
 names(cooling_shares) <- clean_names_simple(names(cooling_shares))
 
 cooling_shares <- cooling_shares %>%
-  transmute(
+  dplyr::transmute(
     country = std_country(country),
     oecd = if ("oecd" %in% names(.)) as.logical(oecd) else oecd_from_country(country),
     period = as_scen(period),
     cooling_type = std_cooling(cooling),
     jeffreys_share = suppressWarnings(as.numeric(jeffreys_share))
   ) %>%
-  filter(
+  dplyr::filter(
     country %in% valid_countries,
     period == SCENARIO
   ) %>%
-  group_by(country, period, cooling_type) %>%
-  summarise(
+  dplyr::group_by(country, period, cooling_type) %>%
+  dplyr::summarise(
     oecd = first(oecd),
     jeffreys_share = first(jeffreys_share),
     .groups = "drop"
   ) %>%
-  group_by(country, period) %>%
-  mutate(prob = jeffreys_share / sum(jeffreys_share, na.rm = TRUE)) %>%
-  ungroup()
+  dplyr::group_by(country, period) %>%
+  dplyr::mutate(prob = jeffreys_share / sum(jeffreys_share, na.rm = TRUE)) %>%
+  dplyr::ungroup()
 
 # -------------------- LOAD COOLING-TYPE FAILURE PENALTIES --------------------
 cooling_fail <- read_excel(P_INPUT, sheet = "cooling_type_failure")
 names(cooling_fail) <- clean_names_simple(names(cooling_fail))
 
 cooling_fail <- cooling_fail %>%
-  transmute(
+  dplyr::transmute(
     cooling_type = std_cooling(if ("cooling_type" %in% names(.)) cooling_type else cooling),
     baseline_licensing_penalty    = clamp01(if ("baseline_licensing_failure" %in% names(.)) baseline_licensing_failure else 0),
     baseline_construction_penalty = clamp01(if ("baseline_construction_failure" %in% names(.)) baseline_construction_failure else 0)
   ) %>%
-  group_by(cooling_type) %>%
-  summarise(
+  dplyr::group_by(cooling_type) %>%
+  dplyr::summarise(
     baseline_licensing_penalty    = first(baseline_licensing_penalty),
     baseline_construction_penalty = first(baseline_construction_penalty),
     .groups = "drop"
@@ -295,13 +404,13 @@ phase_params <- tibble::tribble(
   "licensing",         "accelerated",    0.8405,   0.1432,  1.0,   3.0,
   "construction",      "baseline",       1.64149,  0.2064,  3.0,   7.5
 ) %>%
-  mutate(
+  dplyr::mutate(
     phase = as_phase(phase),
     scenario = as_scen(scenario)
   )
 
 param_map <- phase_params %>%
-  mutate(key = paste0(phase, "__", scenario)) %>%
+  dplyr::mutate(key = paste0(phase, "__", scenario)) %>%
   split(.$key) %>%
   purrr::map(~ list(mean = .x$mean[[1]], sd = .x$sd[[1]], min = .x$min[[1]], max = .x$max[[1]]))
 
@@ -364,21 +473,21 @@ lambda_path <- lambda_path_from_rule(rules_add, YEARS)
 
 # -------------------- COUNTRY / COOLING WEIGHTS --------------------
 country_weight_tbl <- country_rates %>%
-  transmute(country, region, oecd, scenario = SCENARIO, weight = baseline) %>%
-  group_by(scenario) %>%
-  mutate(prob = weight / sum(weight, na.rm = TRUE)) %>%
-  ungroup()
+  dplyr::transmute(country, region, oecd, scenario = SCENARIO, weight = baseline) %>%
+  dplyr::group_by(scenario) %>%
+  dplyr::mutate(prob = weight / sum(weight, na.rm = TRUE)) %>%
+  dplyr::ungroup()
 
 get_country_probs <- function(scenario){
   country_weight_tbl %>%
-    filter(scenario == as_scen(scenario)) %>%
-    arrange(country)
+    dplyr::filter(scenario == as_scen(scenario)) %>%
+    dplyr::arrange(country)
 }
 
 get_cooling_probs <- function(country, scenario){
   out <- cooling_shares %>%
-    filter(country == !!country, period == as_scen(scenario)) %>%
-    arrange(cooling_type)
+    dplyr::filter(country == !!country, period == as_scen(scenario)) %>%
+    dplyr::arrange(cooling_type)
   
   if (nrow(out) == 0){
     out <- tibble(
@@ -400,7 +509,7 @@ apply_cooling_penalty_to_survival <- function(base_surv, cooling_type, phase, sc
   phase <- as_phase(phase)
   scenario <- as_scen(scenario)
   
-  pen_row <- cooling_fail %>% filter(cooling_type == !!cooling_type)
+  pen_row <- cooling_fail %>% dplyr::filter(cooling_type == !!cooling_type)
   if (nrow(pen_row) == 0) return(clamp01(base_surv))
   
   base_fail <- clamp01(1 - base_surv)
@@ -457,7 +566,7 @@ generate_additions_for_sim <- function(scenario, sim_id, years_vec, lambda_path)
     draw_oecd      <- ctry_probs$oecd[draw_idx]
     draw_regions   <- ctry_probs$region[draw_idx]
     
-    cooling_draws <- map_chr(draw_countries, function(cc){
+    cooling_draws <- purrr::map_chr(draw_countries, function(cc){
       cool_tbl <- get_cooling_probs(cc, scenario)
       sample(cool_tbl$cooling_type, size = 1, prob = cool_tbl$prob)
     })
@@ -482,13 +591,13 @@ generate_additions_for_sim <- function(scenario, sim_id, years_vec, lambda_path)
       construction_start = NA_real_,
       operational_start = NA_real_
     ) %>%
-      left_join(fail_rates, by = c("country", "region", "oecd"))
+      dplyr::left_join(fail_rates, by = c("country", "region", "oecd"))
     
     out[[idx]] <- tmp
     idx <- idx + 1L
   }
   
-  bind_rows(out)
+  dplyr::bind_rows(out)
 }
 
 # -------------------- SIMULATE ONE FUTURE DESIGN --------------------
@@ -596,14 +705,14 @@ simulate_future_to_foak <- function(row, scenario){
 
 # -------------------- RUN MONTE CARLO --------------------
 run_future_mc <- function(scenario, sims, years_vec, lambda_path){
-  map_dfr(seq_len(sims), function(s){
+  purrr::map_dfr(seq_len(sims), function(s){
     adds <- generate_additions_for_sim(scenario, s, years_vec, lambda_path)
     
     if (nrow(adds) == 0){
       return(empty_draw_tbl())
     }
     
-    map_dfr(seq_len(nrow(adds)), function(i){
+    purrr::map_dfr(seq_len(nrow(adds)), function(i){
       simulate_future_to_foak(adds[i, ], scenario)
     })
   })
@@ -618,15 +727,15 @@ compute_cutoff_counts <- function(df, cutoff_year, value = c("entry_year", "foak
   value <- match.arg(value)
   
   tmp <- df %>%
-    mutate(
+    dplyr::mutate(
       ok = if (value == "entry_year") {
         !is.na(entry_year) & entry_year <= cutoff_year
       } else {
         !is.na(foak_year) & floor(foak_year) <= cutoff_year
       }
     ) %>%
-    group_by(sim, scenario) %>%
-    summarise(total = sum(ok), .groups = "drop")
+    dplyr::group_by(sim, scenario) %>%
+    dplyr::summarise(total = sum(ok), .groups = "drop")
   
   full_grid <- expand.grid(
     sim = seq_len(SIMS),
@@ -635,23 +744,23 @@ compute_cutoff_counts <- function(df, cutoff_year, value = c("entry_year", "foak
   )
   
   tmp <- full_grid %>%
-    left_join(tmp, by = c("sim", "scenario")) %>%
-    mutate(total = ifelse(is.na(total), 0, total))
+    dplyr::left_join(tmp, by = c("sim", "scenario")) %>%
+    dplyr::mutate(total = ifelse(is.na(total), 0, total))
   
   tmp %>%
-    group_by(scenario) %>%
-    summarise(
+    dplyr::group_by(scenario) %>%
+    dplyr::summarise(
       Mean = safe_mean(total),
       P10  = safe_q(total, 0.10),
       P50  = safe_q(total, 0.50),
       P90  = safe_q(total, 0.90),
       .groups = "drop"
     ) %>%
-    mutate(
+    dplyr::mutate(
       cutoff_year = cutoff_year,
       metric = ifelse(value == "entry_year", "cumulative_additions", "cumulative_foaks")
     ) %>%
-    select(scenario, cutoff_year, metric, Mean, P10, P50, P90)
+    dplyr::select(scenario, cutoff_year, metric, Mean, P10, P50, P90)
 }
 
 compute_cutoff_counts_by_group <- function(df, cutoff_year, value = c("entry_year", "foak_year"), group_vars, metric_name){
@@ -659,15 +768,15 @@ compute_cutoff_counts_by_group <- function(df, cutoff_year, value = c("entry_yea
   group_vars <- as.character(group_vars)
   
   tmp <- df %>%
-    mutate(
+    dplyr::mutate(
       ok = if (value == "entry_year") {
         !is.na(entry_year) & entry_year <= cutoff_year
       } else {
         !is.na(foak_year) & floor(foak_year) <= cutoff_year
       }
     ) %>%
-    group_by(sim, scenario, across(all_of(group_vars))) %>%
-    summarise(total = sum(ok), .groups = "drop")
+    dplyr::group_by(sim, scenario, across(all_of(group_vars))) %>%
+    dplyr::summarise(total = sum(ok), .groups = "drop")
   
   group_levels <- lapply(group_vars, function(g) sort(unique(df[[g]])))
   names(group_levels) <- group_vars
@@ -678,30 +787,30 @@ compute_cutoff_counts_by_group <- function(df, cutoff_year, value = c("entry_yea
   )
   
   tmp <- full_grid %>%
-    left_join(tmp, by = c("sim", "scenario", group_vars)) %>%
-    mutate(total = ifelse(is.na(total), 0, total))
+    dplyr::left_join(tmp, by = c("sim", "scenario", group_vars)) %>%
+    dplyr::mutate(total = ifelse(is.na(total), 0, total))
   
   tmp %>%
-    group_by(scenario, across(all_of(group_vars))) %>%
-    summarise(
+    dplyr::group_by(scenario, across(all_of(group_vars))) %>%
+    dplyr::summarise(
       Mean = safe_mean(total),
       P10  = safe_q(total, 0.10),
       P50  = safe_q(total, 0.50),
       P90  = safe_q(total, 0.90),
       .groups = "drop"
     ) %>%
-    mutate(
+    dplyr::mutate(
       cutoff_year = cutoff_year,
       metric = metric_name
     ) %>%
-    select(scenario, cutoff_year, all_of(group_vars), metric, Mean, P10, P50, P90)
+    dplyr::select(scenario, cutoff_year, all_of(group_vars), metric, Mean, P10, P50, P90)
 }
 
 build_annual_summary <- function(df){
-  bind_rows(lapply(YEARS, function(y){
+  dplyr::bind_rows(lapply(YEARS, function(y){
     tmp <- df %>%
-      group_by(sim, scenario) %>%
-      summarise(
+      dplyr::group_by(sim, scenario) %>%
+      dplyr::summarise(
         cumulative_additions = sum(!is.na(entry_year) & entry_year <= y),
         cumulative_foaks = sum(!is.na(foak_year) & floor(foak_year) <= y),
         .groups = "drop"
@@ -714,13 +823,13 @@ build_annual_summary <- function(df){
     )
     
     full_grid %>%
-      left_join(tmp, by = c("sim", "scenario")) %>%
-      mutate(
+      dplyr::left_join(tmp, by = c("sim", "scenario")) %>%
+      dplyr::mutate(
         cumulative_additions = ifelse(is.na(cumulative_additions), 0, cumulative_additions),
         cumulative_foaks = ifelse(is.na(cumulative_foaks), 0, cumulative_foaks)
       ) %>%
-      group_by(scenario) %>%
-      summarise(
+      dplyr::group_by(scenario) %>%
+      dplyr::summarise(
         additions_mean = safe_mean(cumulative_additions),
         additions_p10  = safe_q(cumulative_additions, 0.10),
         additions_p50  = safe_q(cumulative_additions, 0.50),
@@ -731,18 +840,18 @@ build_annual_summary <- function(df){
         foaks_p90      = safe_q(cumulative_foaks, 0.90),
         .groups = "drop"
       ) %>%
-      mutate(year = y) %>%
-      select(year, everything())
+      dplyr::mutate(year = y) %>%
+      dplyr::select(year, everything())
   }))
 }
 
 build_group_annual_foaks <- function(df, group_vars){
   group_vars <- as.character(group_vars)
   
-  bind_rows(lapply(YEARS, function(y){
+  dplyr::bind_rows(lapply(YEARS, function(y){
     tmp <- df %>%
-      group_by(sim, scenario, across(all_of(group_vars))) %>%
-      summarise(
+      dplyr::group_by(sim, scenario, across(all_of(group_vars))) %>%
+      dplyr::summarise(
         cumulative_foaks = sum(!is.na(foak_year) & floor(foak_year) <= y),
         .groups = "drop"
       )
@@ -756,98 +865,98 @@ build_group_annual_foaks <- function(df, group_vars){
     )
     
     full_grid %>%
-      left_join(tmp, by = c("sim", "scenario", group_vars)) %>%
-      mutate(cumulative_foaks = ifelse(is.na(cumulative_foaks), 0, cumulative_foaks)) %>%
-      group_by(scenario, across(all_of(group_vars))) %>%
-      summarise(
+      dplyr::left_join(tmp, by = c("sim", "scenario", group_vars)) %>%
+      dplyr::mutate(cumulative_foaks = ifelse(is.na(cumulative_foaks), 0, cumulative_foaks)) %>%
+      dplyr::group_by(scenario, across(all_of(group_vars))) %>%
+      dplyr::summarise(
         Mean = safe_mean(cumulative_foaks),
         P10  = safe_q(cumulative_foaks, 0.10),
         P50  = safe_q(cumulative_foaks, 0.50),
         P90  = safe_q(cumulative_foaks, 0.90),
         .groups = "drop"
       ) %>%
-      mutate(year = y) %>%
-      select(year, scenario, all_of(group_vars), Mean, P10, P50, P90)
+      dplyr::mutate(year = y) %>%
+      dplyr::select(year, scenario, all_of(group_vars), Mean, P10, P50, P90)
   }))
 }
 
 # -------------------- SUMMARIES --------------------
-summary_quantiles <- bind_rows(
+summary_quantiles <- dplyr::bind_rows(
   compute_cutoff_counts(mc_all, 2050, "entry_year"),
   compute_cutoff_counts(mc_all, 2050, "foak_year"),
   compute_cutoff_counts(mc_all, 2075, "entry_year"),
   compute_cutoff_counts(mc_all, 2075, "foak_year")
 ) %>%
-  arrange(scenario, cutoff_year, metric)
+  dplyr::arrange(scenario, cutoff_year, metric)
 
-summary_geo <- bind_rows(
+summary_geo <- dplyr::bind_rows(
   compute_cutoff_counts_by_group(mc_all, 2050, "entry_year", "geopolitical_group", "cumulative_additions"),
   compute_cutoff_counts_by_group(mc_all, 2050, "foak_year", "geopolitical_group", "cumulative_foaks"),
   compute_cutoff_counts_by_group(mc_all, 2075, "entry_year", "geopolitical_group", "cumulative_additions"),
   compute_cutoff_counts_by_group(mc_all, 2075, "foak_year", "geopolitical_group", "cumulative_foaks")
 ) %>%
-  arrange(scenario, cutoff_year, geopolitical_group, metric)
+  dplyr::arrange(scenario, cutoff_year, geopolitical_group, metric)
 
-summary_country <- bind_rows(
+summary_country <- dplyr::bind_rows(
   compute_cutoff_counts_by_group(mc_all, 2050, "entry_year", "country", "cumulative_additions"),
   compute_cutoff_counts_by_group(mc_all, 2050, "foak_year", "country", "cumulative_foaks"),
   compute_cutoff_counts_by_group(mc_all, 2075, "entry_year", "country", "cumulative_additions"),
   compute_cutoff_counts_by_group(mc_all, 2075, "foak_year", "country", "cumulative_foaks")
 ) %>%
-  arrange(scenario, cutoff_year, country, metric)
+  dplyr::arrange(scenario, cutoff_year, country, metric)
 
-summary_region <- bind_rows(
+summary_region <- dplyr::bind_rows(
   compute_cutoff_counts_by_group(mc_all, 2050, "entry_year", "region", "cumulative_additions"),
   compute_cutoff_counts_by_group(mc_all, 2050, "foak_year", "region", "cumulative_foaks"),
   compute_cutoff_counts_by_group(mc_all, 2075, "entry_year", "region", "cumulative_additions"),
   compute_cutoff_counts_by_group(mc_all, 2075, "foak_year", "region", "cumulative_foaks")
 ) %>%
-  arrange(scenario, cutoff_year, region, metric)
+  dplyr::arrange(scenario, cutoff_year, region, metric)
 
-summary_cooling <- bind_rows(
+summary_cooling <- dplyr::bind_rows(
   compute_cutoff_counts_by_group(mc_all, 2050, "entry_year", "cooling_type", "cumulative_additions"),
   compute_cutoff_counts_by_group(mc_all, 2050, "foak_year", "cooling_type", "cumulative_foaks"),
   compute_cutoff_counts_by_group(mc_all, 2075, "entry_year", "cooling_type", "cumulative_additions"),
   compute_cutoff_counts_by_group(mc_all, 2075, "foak_year", "cooling_type", "cumulative_foaks")
 ) %>%
-  arrange(scenario, cutoff_year, cooling_type, metric)
+  dplyr::arrange(scenario, cutoff_year, cooling_type, metric)
 
-summary_water <- bind_rows(
+summary_water <- dplyr::bind_rows(
   compute_cutoff_counts_by_group(mc_all, 2050, "entry_year", "water_class", "cumulative_additions"),
   compute_cutoff_counts_by_group(mc_all, 2050, "foak_year", "water_class", "cumulative_foaks"),
   compute_cutoff_counts_by_group(mc_all, 2075, "entry_year", "water_class", "cumulative_additions"),
   compute_cutoff_counts_by_group(mc_all, 2075, "foak_year", "water_class", "cumulative_foaks")
 ) %>%
-  arrange(scenario, cutoff_year, water_class, metric)
+  dplyr::arrange(scenario, cutoff_year, water_class, metric)
 
-summary_region_cooling <- bind_rows(
+summary_region_cooling <- dplyr::bind_rows(
   compute_cutoff_counts_by_group(mc_all, 2050, "entry_year", c("region", "cooling_type"), "cumulative_additions"),
   compute_cutoff_counts_by_group(mc_all, 2050, "foak_year", c("region", "cooling_type"), "cumulative_foaks"),
   compute_cutoff_counts_by_group(mc_all, 2075, "entry_year", c("region", "cooling_type"), "cumulative_additions"),
   compute_cutoff_counts_by_group(mc_all, 2075, "foak_year", c("region", "cooling_type"), "cumulative_foaks")
 ) %>%
-  arrange(scenario, cutoff_year, region, cooling_type, metric)
+  dplyr::arrange(scenario, cutoff_year, region, cooling_type, metric)
 
 summary_descriptives <- build_annual_summary(mc_all) %>%
-  arrange(scenario, year)
+  dplyr::arrange(scenario, year)
 
 annual_geo <- build_group_annual_foaks(mc_all, "geopolitical_group") %>%
-  arrange(scenario, geopolitical_group, year)
+  dplyr::arrange(scenario, geopolitical_group, year)
 
 annual_country <- build_group_annual_foaks(mc_all, "country") %>%
-  arrange(scenario, country, year)
+  dplyr::arrange(scenario, country, year)
 
 annual_region <- build_group_annual_foaks(mc_all, "region") %>%
-  arrange(scenario, region, year)
+  dplyr::arrange(scenario, region, year)
 
 annual_cooling <- build_group_annual_foaks(mc_all, "cooling_type") %>%
-  arrange(scenario, cooling_type, year)
+  dplyr::arrange(scenario, cooling_type, year)
 
 annual_water <- build_group_annual_foaks(mc_all, "water_class") %>%
-  arrange(scenario, water_class, year)
+  dplyr::arrange(scenario, water_class, year)
 
 annual_region_cooling <- build_group_annual_foaks(mc_all, c("region", "cooling_type")) %>%
-  arrange(scenario, region, cooling_type, year)
+  dplyr::arrange(scenario, region, cooling_type, year)
 
 run_metadata <- tibble(
   item = c(
@@ -864,7 +973,10 @@ run_metadata <- tibble(
     "sheet_design_phase_failures",
     "sheet_failures_region_country",
     "sheet_cooling_type_failure",
+    "path_mode",
+    "repo_root",
     "run_directory",
+    "latest_directory",
     "run_tag",
     "current_phase_override_logic"
   ),
@@ -882,15 +994,35 @@ run_metadata <- tibble(
     "design_phase_failures",
     "failures_region_country",
     "cooling_type_failure",
+    PATH_MODE,
+    ROOT_DIR,
     RUN_DIR,
+    LATEST_DIR,
     RUN_TAG,
     "Conceptual design survival forced to 1.0 for baseline current-phase-completion run"
   )
 )
 
 # -------------------- EXPORT --------------------
-xlsx_path_run <- file.path(RUN_DIR, paste0(RUN_TAG, ".xlsx"))
-rds_path_run  <- file.path(RUN_DIR, paste0(RUN_TAG, ".rds"))
+xlsx_path_run <- file.path(
+  RUN_DIR,
+  paste0("post2025_cpc_baseline_mc_", SIMS, "_", stamp, ".xlsx")
+)
+
+xlsx_path_latest <- file.path(
+  LATEST_DIR,
+  "post2025_cpc_baseline_mc_latest.xlsx"
+)
+
+rds_path_run <- file.path(
+  RUN_DIR,
+  paste0("post2025_cpc_baseline_bundle_", SIMS, "_", stamp, ".rds")
+)
+
+rds_path_latest <- file.path(
+  LATEST_DIR,
+  "post2025_cpc_baseline_bundle_latest.rds"
+)
 
 xlsx_contents <- list(
   baseline_draws = mc_baseline,
@@ -912,10 +1044,18 @@ xlsx_contents <- list(
 )
 
 tmp_xlsx <- tempfile(pattern = "post2025_bas_cpc_", fileext = ".xlsx")
-write_xlsx(xlsx_contents, path = tmp_xlsx)
+writexl::write_xlsx(xlsx_contents, path = tmp_xlsx)
 
-ok_copy <- file.copy(tmp_xlsx, xlsx_path_run, overwrite = TRUE)
-if (!ok_copy || !file.exists(xlsx_path_run)) stop("XLSX copy failed: ", xlsx_path_run)
+ok_copy_run <- file.copy(tmp_xlsx, xlsx_path_run, overwrite = TRUE)
+ok_copy_latest <- file.copy(tmp_xlsx, xlsx_path_latest, overwrite = TRUE)
+
+if (!ok_copy_run || !file.exists(xlsx_path_run)) {
+  stop("XLSX copy failed: ", xlsx_path_run, call. = FALSE)
+}
+
+if (!ok_copy_latest || !file.exists(xlsx_path_latest)) {
+  stop("Latest XLSX copy failed: ", xlsx_path_latest, call. = FALSE)
+}
 
 model_bundle <- list(
   mc_baseline = mc_baseline,
@@ -946,14 +1086,26 @@ model_bundle <- list(
 )
 
 saveRDS(model_bundle, file = rds_path_run)
-if (!file.exists(rds_path_run)) stop("RDS save failed: ", rds_path_run)
+saveRDS(model_bundle, file = rds_path_latest)
+
+if (!file.exists(rds_path_run)) stop("RDS save failed: ", rds_path_run, call. = FALSE)
+if (!file.exists(rds_path_latest)) stop("Latest RDS save failed: ", rds_path_latest, call. = FALSE)
 
 cat("\n================ POST-2025 BASELINE CURRENT-PHASE-COMPLETION MC COMPLETE ================\n")
+cat("Path mode:", PATH_MODE, "\n")
+cat("Input workbook:", P_INPUT, "\n")
+cat("Output directory:", OUTDIR, "\n")
+cat("Simulations:", SIMS, "\n")
 cat("Baseline rows:", nrow(mc_baseline), "\n")
 cat("RUN_DIR:\n", RUN_DIR, "\n")
-cat("XLSX:\n", xlsx_path_run, "\n")
-cat("RDS:\n", rds_path_run, "\n")
+cat("LATEST_DIR:\n", LATEST_DIR, "\n")
+cat("XLSX run:\n", xlsx_path_run, "\n")
+cat("XLSX latest:\n", xlsx_path_latest, "\n")
+cat("RDS run:\n", rds_path_run, "\n")
+cat("RDS latest:\n", rds_path_latest, "\n")
 cat("========================================================================================\n\n")
 
 print(xlsx_path_run)
+print(xlsx_path_latest)
 print(rds_path_run)
+print(rds_path_latest)
