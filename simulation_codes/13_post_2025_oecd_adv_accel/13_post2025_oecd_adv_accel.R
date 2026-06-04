@@ -1,13 +1,18 @@
 # ============================================================
 # FUTURE DESIGN ADDITIONS — PROJECT PROGRESSION MONTE CARLO
-# ACCELERATED ONLY • OECD-ADVANCED LICENSING SENSITIVITY
+# MODULE 13: POST-2025 OECD-ADVANCED LICENSING SENSITIVITY
+# ACCELERATED ONLY
+# FAIL-GATED • FULL CLEAN SCRIPT • LOGNORMAL EVERYWHERE
 #
-# GitHub version
+# GitHub / submission version
 #
-# Required input workbook in the same folder as this script:
-# post-2025_oecd_advance_accelerated_sensitivity.xlsx
+# Required input workbook:
+# data/Simulation_Inputs/post-2025_oecd_advance_accelerated_sensitivity.xlsx
 #
-# OECD-ADVANCED LOGIC:
+# Clean output directory:
+# outputs/Simulation_Outputs/13_post2025_oecd_adv_accel/post2025_oecd_adv_accel_output_final/
+#
+# OECD-advanced logic:
 # OECD countries plus China/Russia use deterministic 1-year
 # licensing durations in the Accelerated scenario.
 # ============================================================
@@ -22,10 +27,101 @@ suppressPackageStartupMessages({
   library(tidyr)
 })
 
-# -------------------- PATHS --------------------
-P_INPUT <- "post-2025_oecd_advance_accelerated_sensitivity.xlsx"
+# -------------------- REPOSITORY ROOT --------------------
+normalise_path <- function(x) {
+  normalizePath(x, winslash = "/", mustWork = FALSE)
+}
 
-OUTDIR <- "."
+get_script_path <- function() {
+  cmd_args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- "--file="
+  hit <- grep(file_arg, cmd_args, value = TRUE)
+  
+  if (length(hit) > 0) {
+    return(normalise_path(sub(file_arg, "", hit[[1]])))
+  }
+  
+  for (frame in sys.frames()) {
+    if (!is.null(frame$ofile)) {
+      return(normalise_path(frame$ofile))
+    }
+  }
+  
+  NA_character_
+}
+
+parent_dirs <- function(start_dir) {
+  dirs <- character()
+  d <- normalise_path(start_dir)
+  
+  repeat {
+    dirs <- c(dirs, d)
+    parent <- dirname(d)
+    
+    if (identical(parent, d)) break
+    
+    d <- parent
+  }
+  
+  unique(dirs)
+}
+
+find_repo_root <- function(start_dirs = getwd()) {
+  target_file <- file.path(
+    "data",
+    "Simulation_Inputs",
+    "post-2025_oecd_advance_accelerated_sensitivity.xlsx"
+  )
+  
+  start_dirs <- unique(start_dirs)
+  start_dirs <- start_dirs[!is.na(start_dirs)]
+  
+  for (start_dir in start_dirs) {
+    if (!dir.exists(start_dir)) next
+    
+    for (d in parent_dirs(start_dir)) {
+      if (file.exists(file.path(d, target_file))) {
+        return(normalise_path(d))
+      }
+    }
+  }
+  
+  stop(
+    paste0(
+      "Repository root not found.\n",
+      "Expected to find:\n",
+      target_file,
+      "\nCurrent working directory:\n",
+      getwd()
+    ),
+    call. = FALSE
+  )
+}
+
+SCRIPT_PATH <- get_script_path()
+SCRIPT_DIR <- if (!is.na(SCRIPT_PATH)) dirname(SCRIPT_PATH) else getwd()
+
+ROOT_DIR <- find_repo_root(c(getwd(), SCRIPT_DIR))
+PATH_MODE <- "github_repo_layout"
+
+# -------------------- PATHS --------------------
+P_INPUT <- file.path(
+  ROOT_DIR,
+  "data",
+  "Simulation_Inputs",
+  "post-2025_oecd_advance_accelerated_sensitivity.xlsx"
+)
+
+OUTDIR <- file.path(
+  ROOT_DIR,
+  "outputs",
+  "Simulation_Outputs",
+  "13_post2025_oecd_adv_accel",
+  "post2025_oecd_adv_accel_output_final"
+)
+
+P_INPUT <- normalise_path(P_INPUT)
+OUTDIR <- normalise_path(OUTDIR)
 
 # -------------------- GLOBALS --------------------
 SIMS       <- 10000L
@@ -37,17 +133,29 @@ YEARS      <- START_YEAR:END_YEAR
 
 set.seed(SEED)
 
-if (!file.exists(P_INPUT)) stop("Input workbook not found: ", P_INPUT)
+if (!file.exists(P_INPUT)) stop("Input workbook not found: ", P_INPUT, call. = FALSE)
 
 if (!dir.exists(OUTDIR)) dir.create(OUTDIR, recursive = TRUE, showWarnings = FALSE)
-if (!dir.exists(OUTDIR)) stop("OUTDIR could not be created: ", OUTDIR)
+if (!dir.exists(OUTDIR)) stop("OUTDIR could not be created: ", OUTDIR, call. = FALSE)
 
 stamp   <- format(Sys.time(), "%Y%m%d_%H%M")
-RUN_TAG <- paste0("POST2025_ACC_OECDADV_MC", SIMS, "_", stamp)
-RUN_DIR <- file.path(OUTDIR, RUN_TAG)
+RUN_TAG <- paste0("post2025_oecd_adv_accel_mc_", SIMS)
+
+RUN_DIR <- file.path(
+  OUTDIR,
+  paste0("run_", SIMS, "_", stamp)
+)
+
+LATEST_DIR <- file.path(
+  OUTDIR,
+  "latest"
+)
 
 dir.create(RUN_DIR, recursive = TRUE, showWarnings = FALSE)
-if (!dir.exists(RUN_DIR)) stop("RUN_DIR could not be created: ", RUN_DIR)
+dir.create(LATEST_DIR, recursive = TRUE, showWarnings = FALSE)
+
+if (!dir.exists(RUN_DIR)) stop("RUN_DIR could not be created: ", RUN_DIR, call. = FALSE)
+if (!dir.exists(LATEST_DIR)) stop("LATEST_DIR could not be created: ", LATEST_DIR, call. = FALSE)
 
 # -------------------- HELPERS --------------------
 clean_names_simple <- function(x){
@@ -174,7 +282,7 @@ dpf <- dpf %>%
 req_phases <- c("conceptual_design", "basic_design", "detailed_design")
 miss_phases <- setdiff(req_phases, unique(dpf$phase))
 if (length(miss_phases) > 0) {
-  stop("Missing phases in design_phase_failures for accelerated: ", paste(miss_phases, collapse = ", "))
+  stop("Missing phases in design_phase_failures for baseline: ", paste(miss_phases, collapse = ", "))
 }
 
 jeffreys_survival <- setNames(dpf$p_surv_mean, dpf$phase)
@@ -187,15 +295,15 @@ fail_rates <- fail_rates %>%
   transmute(
     country = std_country(country),
     oecd = if ("oecd" %in% names(.)) as.logical(oecd) else oecd_from_country(country),
-    licensing_failure_accelerated    = clamp01(accelerated_licensing_failure),
-    construction_failure_accelerated = clamp01(accelerated_construction_failure)
+    licensing_failure_baseline    = clamp01(baseline_licensing_failure),
+    construction_failure_baseline = clamp01(baseline_construction_failure)
   ) %>%
   mutate(
     region = region_from_country(country),
-    lic_surv_accel = clamp01(1 - licensing_failure_accelerated),
-    con_surv_accel = clamp01(1 - construction_failure_accelerated)
+    lic_surv_baseline = clamp01(1 - licensing_failure_baseline),
+    con_surv_baseline = clamp01(1 - construction_failure_baseline)
   ) %>%
-  select(country, region, oecd, lic_surv_accel, con_surv_accel)
+  select(country, region, oecd, lic_surv_baseline, con_surv_baseline)
 
 if (any(is.na(fail_rates$country))) stop("Missing country values in failures_region_country sheet")
 if (any(is.na(fail_rates$region))) stop("Missing derived region values in failures_region_country sheet")
@@ -208,14 +316,14 @@ country_rates <- country_rates %>%
   transmute(
     country = std_country(country),
     oecd = if ("oecd" %in% names(.)) as.logical(oecd) else oecd_from_country(country),
-    accelerated = suppressWarnings(as.numeric(accelerated))
+    baseline = suppressWarnings(as.numeric(baseline))
   ) %>%
   filter(
     !is.na(country),
     !country %in% c("Global", "OECD", "Non-OECD")
   ) %>%
   mutate(region = region_from_country(country)) %>%
-  select(country, region, oecd, accelerated)
+  select(country, region, oecd, baseline)
 
 # -------------------- ALIGN COUNTRY SPACE --------------------
 valid_countries <- intersect(country_rates$country, fail_rates$country)
@@ -245,7 +353,7 @@ rules_add <- rules_add %>%
   ) %>%
   filter(scenario == SCENARIO)
 
-if (nrow(rules_add) == 0) stop("No accelerated row found in phase_rules_additions sheet")
+if (nrow(rules_add) == 0) stop("No baseline row found in phase_rules_additions sheet")
 
 # -------------------- LOAD COUNTRY COOLING SHARES --------------------
 cooling_shares <- read_excel(P_INPUT, sheet = "design_additions_cooling")
@@ -280,13 +388,13 @@ names(cooling_fail) <- clean_names_simple(names(cooling_fail))
 cooling_fail <- cooling_fail %>%
   transmute(
     cooling_type = std_cooling(if ("cooling_type" %in% names(.)) cooling_type else cooling),
-    accelerated_licensing_penalty    = clamp01(if ("accelerated_licensing_failure" %in% names(.)) accelerated_licensing_failure else 0),
-    accelerated_construction_penalty = clamp01(if ("accelerated_construction_failure" %in% names(.)) accelerated_construction_failure else 0)
+    baseline_licensing_penalty    = clamp01(if ("baseline_licensing_failure" %in% names(.)) baseline_licensing_failure else 0),
+    baseline_construction_penalty = clamp01(if ("baseline_construction_failure" %in% names(.)) baseline_construction_failure else 0)
   ) %>%
   group_by(cooling_type) %>%
   summarise(
-    accelerated_licensing_penalty    = first(accelerated_licensing_penalty),
-    accelerated_construction_penalty = first(accelerated_construction_penalty),
+    baseline_licensing_penalty    = first(baseline_licensing_penalty),
+    baseline_construction_penalty = first(baseline_construction_penalty),
     .groups = "drop"
   )
 
@@ -298,12 +406,13 @@ if (length(miss_cooling) > 0) {
 
 # -------------------- PHASE PARAMETERS --------------------
 phase_params <- tibble::tribble(
-  ~phase,              ~scenario,       ~mean,    ~sd,     ~min,  ~max,
-  "conceptual_design", "accelerated",    5.11,    1.95,    2.0,   10.0,
-  "basic_design",      "accelerated",    3.39,    1.03,    2.0,   5.0,
-  "detailed_design",   "accelerated",    3.36,    1.15,    2.0,   5.0,
-  "licensing",         "accelerated",    0.8405,  0.1432,  1.0,   3.0,
-  "construction",      "accelerated",    1.3768,  0.1242,  3.0,   5.0
+  ~phase,              ~scenario,       ~mean,     ~sd,     ~min,  ~max,
+  "conceptual_design", "baseline",       6.66,     3.46,    2.0,   15.0,
+  "basic_design",      "baseline",       4.76,     3.10,    2.0,   14.0,
+  "detailed_design",   "baseline",       4.22,     2.13,    2.0,   9.0,
+  "licensing",         "baseline",       1.46879,  0.2867,  2.0,   8.0,
+  "licensing",         "accelerated",    0.8405,   0.1432,  1.0,   3.0,
+  "construction",      "baseline",       1.64149,  0.2064,  3.0,   7.5
 ) %>%
   mutate(
     phase = as_phase(phase),
@@ -377,7 +486,7 @@ lambda_path <- lambda_path_from_rule(rules_add, YEARS)
 
 # -------------------- COUNTRY / COOLING WEIGHTS --------------------
 country_weight_tbl <- country_rates %>%
-  transmute(country, region, oecd, scenario = SCENARIO, weight = accelerated) %>%
+  transmute(country, region, oecd, scenario = SCENARIO, weight = baseline) %>%
   group_by(scenario) %>%
   mutate(prob = weight / sum(weight, na.rm = TRUE)) %>%
   ungroup()
@@ -419,8 +528,8 @@ apply_cooling_penalty_to_survival <- function(base_surv, cooling_type, phase, sc
   base_fail <- clamp01(1 - base_surv)
   
   penalty_fail <- 0
-  if (phase == "licensing"    && scenario == "accelerated") penalty_fail <- pen_row$accelerated_licensing_penalty[[1]]
-  if (phase == "construction" && scenario == "accelerated") penalty_fail <- pen_row$accelerated_construction_penalty[[1]]
+  if (phase == "licensing"    && scenario == "baseline") penalty_fail <- pen_row$baseline_licensing_penalty[[1]]
+  if (phase == "construction" && scenario == "baseline") penalty_fail <- pen_row$baseline_construction_penalty[[1]]
   
   adj_fail <- clamp01(base_fail + penalty_fail)
   clamp01(1 - adj_fail)
@@ -434,11 +543,11 @@ get_surv_phase <- function(phase, row){
   }
   
   if (phase == "licensing"){
-    return(apply_cooling_penalty_to_survival(row$lic_surv_accel, row$cooling_type, phase, SCENARIO))
+    return(apply_cooling_penalty_to_survival(row$lic_surv_baseline, row$cooling_type, phase, SCENARIO))
   }
   
   if (phase == "construction"){
-    return(apply_cooling_penalty_to_survival(row$con_surv_accel, row$cooling_type, phase, SCENARIO))
+    return(apply_cooling_penalty_to_survival(row$con_surv_baseline, row$cooling_type, phase, SCENARIO))
   }
   
   1.0
@@ -450,10 +559,10 @@ licensing_duration_with_country_rules <- function(row, elapsed = 0){
   is_oecd <- isTRUE(row$oecd)
   
   if (ctry %in% c("China", "Russia") || is_oecd){
-    return(1.0)
+    return(draw_total_duration("licensing", "accelerated", elapsed))
   }
   
-  draw_total_duration("licensing", "accelerated", elapsed)
+  draw_total_duration("licensing", "baseline", elapsed)
 }
 
 # -------------------- GENERATE SYNTHETIC ADDITIONS --------------------
@@ -487,7 +596,7 @@ generate_additions_for_sim <- function(scenario, sim_id, years_vec, lambda_path)
     
     tmp <- tibble(
       sim = sim_id,
-      design = sprintf("ACC_OECDADV_%05d_%04d_%03d", sim_id, y, seq_len(n_new)),
+      design = sprintf("BAS_OECDADV_%05d_%04d_%03d", sim_id, y, seq_len(n_new)),
       scenario = scenario,
       entry_year = as.numeric(y),
       phase = "conceptual_design",
@@ -640,8 +749,8 @@ run_future_mc <- function(scenario, sims, years_vec, lambda_path){
 }
 
 set.seed(SEED)
-mc_accel <- run_future_mc(SCENARIO, SIMS, YEARS, lambda_path)
-mc_all <- mc_accel
+mc_baseline <- run_future_mc(SCENARIO, SIMS, YEARS, lambda_path)
+mc_all <- mc_baseline
 
 # -------------------- SUMMARY HELPERS --------------------
 compute_cutoff_counts <- function(df, cutoff_year, value = c("entry_year", "foak_year")){
@@ -916,13 +1025,65 @@ run_metadata <- tibble(
     RUN_DIR,
     RUN_TAG,
     "oecd_advanced",
-    "OECD countries plus China/Russia use deterministic 1-year licensing in accelerated"
+    "OECD countries plus China/Russia use accelerated licensing duration in baseline"
   )
 )
 
+# -------------------- SAFE OUTPUT HELPERS --------------------
+ensure_dir <- function(path) {
+  dir.create(path, recursive = TRUE, showWarnings = FALSE)
+  if (!dir.exists(path)) {
+    stop("Directory could not be created: ", path, call. = FALSE)
+  }
+  invisible(path)
+}
+
+ensure_parent_dir <- function(path) {
+  ensure_dir(dirname(path))
+}
+
+safe_copy_file <- function(from, to) {
+  ensure_parent_dir(to)
+  ok <- file.copy(from, to, overwrite = TRUE)
+  if (!ok || !file.exists(to)) {
+    stop("File copy failed: ", to, call. = FALSE)
+  }
+  invisible(to)
+}
+
+safe_save_rds <- function(object, file) {
+  ensure_parent_dir(file)
+  saveRDS(object, file = file)
+  if (!file.exists(file)) {
+    stop("RDS save failed: ", file, call. = FALSE)
+  }
+  invisible(file)
+}
+
+ensure_dir(OUTDIR)
+ensure_dir(RUN_DIR)
+ensure_dir(LATEST_DIR)
+
 # -------------------- EXPORT --------------------
-xlsx_path_run <- file.path(RUN_DIR, paste0(RUN_TAG, ".xlsx"))
-rds_path_run  <- file.path(RUN_DIR, paste0(RUN_TAG, ".rds"))
+xlsx_path_run <- file.path(
+  RUN_DIR,
+  paste0("post2025_oecd_adv_accel_mc_", SIMS, "_", stamp, ".xlsx")
+)
+
+xlsx_path_latest <- file.path(
+  LATEST_DIR,
+  "post2025_oecd_adv_accel_mc_latest.xlsx"
+)
+
+rds_path_run <- file.path(
+  RUN_DIR,
+  paste0("post2025_oecd_adv_accel_bundle_", SIMS, "_", stamp, ".rds")
+)
+
+rds_path_latest <- file.path(
+  LATEST_DIR,
+  "post2025_oecd_adv_accel_bundle_latest.rds"
+)
 
 xlsx_contents <- list(
   accelerated_draws = mc_accel,
@@ -944,10 +1105,10 @@ xlsx_contents <- list(
 )
 
 tmp_xlsx <- tempfile(pattern = "post2025_acc_oecdadv_", fileext = ".xlsx")
-write_xlsx(xlsx_contents, path = tmp_xlsx)
+writexl::write_xlsx(xlsx_contents, path = tmp_xlsx)
 
-ok_copy <- file.copy(tmp_xlsx, xlsx_path_run, overwrite = TRUE)
-if (!ok_copy || !file.exists(xlsx_path_run)) stop("XLSX copy failed: ", xlsx_path_run)
+safe_copy_file(tmp_xlsx, xlsx_path_run)
+safe_copy_file(tmp_xlsx, xlsx_path_latest)
 
 model_bundle <- list(
   mc_accel = mc_accel,
@@ -977,15 +1138,24 @@ model_bundle <- list(
   run_metadata = run_metadata
 )
 
-saveRDS(model_bundle, file = rds_path_run)
-if (!file.exists(rds_path_run)) stop("RDS save failed: ", rds_path_run)
+safe_save_rds(model_bundle, rds_path_run)
+safe_save_rds(model_bundle, rds_path_latest)
 
 cat("\n================ POST-2025 ACCELERATED OECD-ADVANCED MC COMPLETE ================\n")
+cat("Path mode:", PATH_MODE, "\n")
+cat("Input workbook:", P_INPUT, "\n")
+cat("Output directory:", OUTDIR, "\n")
+cat("Simulations:", SIMS, "\n")
 cat("Accelerated rows:", nrow(mc_accel), "\n")
 cat("RUN_DIR:\n", RUN_DIR, "\n")
-cat("XLSX:\n", xlsx_path_run, "\n")
-cat("RDS:\n", rds_path_run, "\n")
+cat("LATEST_DIR:\n", LATEST_DIR, "\n")
+cat("XLSX run:\n", xlsx_path_run, "\n")
+cat("XLSX latest:\n", xlsx_path_latest, "\n")
+cat("RDS run:\n", rds_path_run, "\n")
+cat("RDS latest:\n", rds_path_latest, "\n")
 cat("================================================================================\n\n")
 
 print(xlsx_path_run)
+print(xlsx_path_latest)
 print(rds_path_run)
+print(rds_path_latest)
