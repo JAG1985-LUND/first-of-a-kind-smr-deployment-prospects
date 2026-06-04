@@ -1035,6 +1035,42 @@ run_metadata <- tibble::tibble(
   )
 )
 
+
+# -------------------- SAFE OUTPUT HELPERS --------------------
+ensure_dir <- function(path) {
+  dir.create(path, recursive = TRUE, showWarnings = FALSE)
+  if (!dir.exists(path)) {
+    stop("Directory could not be created: ", path, call. = FALSE)
+  }
+  invisible(path)
+}
+
+ensure_parent_dir <- function(path) {
+  ensure_dir(dirname(path))
+}
+
+safe_copy_file <- function(from, to) {
+  ensure_parent_dir(to)
+  ok <- file.copy(from, to, overwrite = TRUE)
+  if (!ok || !file.exists(to)) {
+    stop("File copy failed: ", to, call. = FALSE)
+  }
+  invisible(to)
+}
+
+safe_save_rds <- function(object, file) {
+  ensure_parent_dir(file)
+  saveRDS(object, file = file)
+  if (!file.exists(file)) {
+    stop("RDS save failed: ", file, call. = FALSE)
+  }
+  invisible(file)
+}
+
+ensure_dir(OUTDIR)
+ensure_dir(RUN_DIR)
+ensure_dir(LATEST_DIR)
+
 # -------------------- EXPORT --------------------
 xlsx_path_run <- file.path(
   RUN_DIR,
@@ -1078,16 +1114,8 @@ xlsx_contents <- list(
 tmp_xlsx <- tempfile(pattern = "post2025_bas_oecdadv_", fileext = ".xlsx")
 writexl::write_xlsx(xlsx_contents, path = tmp_xlsx)
 
-ok_copy_run <- file.copy(tmp_xlsx, xlsx_path_run, overwrite = TRUE)
-ok_copy_latest <- file.copy(tmp_xlsx, xlsx_path_latest, overwrite = TRUE)
-
-if (!ok_copy_run || !file.exists(xlsx_path_run)) {
-  stop("XLSX copy failed: ", xlsx_path_run, call. = FALSE)
-}
-
-if (!ok_copy_latest || !file.exists(xlsx_path_latest)) {
-  stop("Latest XLSX copy failed: ", xlsx_path_latest, call. = FALSE)
-}
+safe_copy_file(tmp_xlsx, xlsx_path_run)
+safe_copy_file(tmp_xlsx, xlsx_path_latest)
 
 model_bundle <- list(
   mc_baseline = mc_baseline,
@@ -1117,11 +1145,8 @@ model_bundle <- list(
   run_metadata = run_metadata
 )
 
-saveRDS(model_bundle, file = rds_path_run)
-saveRDS(model_bundle, file = rds_path_latest)
-
-if (!file.exists(rds_path_run)) stop("RDS save failed: ", rds_path_run, call. = FALSE)
-if (!file.exists(rds_path_latest)) stop("Latest RDS save failed: ", rds_path_latest, call. = FALSE)
+safe_save_rds(model_bundle, rds_path_run)
+safe_save_rds(model_bundle, rds_path_latest)
 
 cat("\n================ POST-2025 BASELINE OECD-ADVANCED MC COMPLETE ================\n")
 cat("Path mode:", PATH_MODE, "\n")
