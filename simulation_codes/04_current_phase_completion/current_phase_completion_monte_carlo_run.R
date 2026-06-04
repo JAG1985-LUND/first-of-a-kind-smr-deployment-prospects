@@ -23,7 +23,7 @@
 #   4) failure_rates_smr
 #
 # OUTPUT:
-#   outputs/simulation_outputs/current_phase_completion_sensitivity/
+#   outputs/Simulation_Outputs/04_current_phase_completion/current_phase_completion_output_final/
 #
 # NOTE:
 #   • CAREM keeps its historical construction_start and project progression
@@ -42,10 +42,106 @@ suppressPackageStartupMessages({
   library(tidyr)
 })
 
-# -------------------- PATHS --------------------
-P_INPUT <- "data/Simulation_Inputs/current_phase_completion_sensitivity_inputs.xlsx"
+# -------------------- REPOSITORY ROOT --------------------
+normalise_path <- function(x) {
+  normalizePath(x, winslash = "/", mustWork = FALSE)
+}
 
-OUTDIR <- "outputs/simulation_outputs/current_phase_completion_sensitivity/"
+get_script_path <- function() {
+  cmd_args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- "--file="
+  hit <- grep(file_arg, cmd_args, value = TRUE)
+  
+  if (length(hit) > 0) {
+    return(normalise_path(sub(file_arg, "", hit[1])))
+  }
+  
+  for (frame in sys.frames()) {
+    if (!is.null(frame$ofile)) {
+      return(normalise_path(frame$ofile))
+    }
+  }
+  
+  NA_character_
+}
+
+parent_dirs <- function(start_dir) {
+  dirs <- character()
+  d <- normalise_path(start_dir)
+  
+  repeat {
+    dirs <- c(dirs, d)
+    parent <- dirname(d)
+    
+    if (identical(parent, d)) {
+      break
+    }
+    
+    d <- parent
+  }
+  
+  unique(dirs)
+}
+
+find_repo_root <- function(start_dirs = getwd()) {
+  target_file <- file.path(
+    "data",
+    "Simulation_Inputs",
+    "current_phase_completion_sensitivity_inputs.xlsx"
+  )
+  
+  start_dirs <- unique(start_dirs)
+  start_dirs <- start_dirs[!is.na(start_dirs)]
+  
+  for (start_dir in start_dirs) {
+    if (!dir.exists(start_dir)) {
+      next
+    }
+    
+    for (d in parent_dirs(start_dir)) {
+      if (file.exists(file.path(d, target_file))) {
+        return(normalise_path(d))
+      }
+    }
+  }
+  
+  stop(
+    paste0(
+      "Repository root not found.\n\n",
+      "Expected to find:\n",
+      target_file, "\n\n",
+      "Current working directory:\n",
+      getwd()
+    ),
+    call. = FALSE
+  )
+}
+
+SCRIPT_PATH <- get_script_path()
+SCRIPT_DIR  <- if (!is.na(SCRIPT_PATH)) dirname(SCRIPT_PATH) else getwd()
+
+ROOT_DIR <- find_repo_root(c(getwd(), SCRIPT_DIR))
+
+PATH_MODE <- "github_repo_layout"
+
+# -------------------- PATHS --------------------
+P_INPUT <- file.path(
+  ROOT_DIR,
+  "data",
+  "Simulation_Inputs",
+  "current_phase_completion_sensitivity_inputs.xlsx"
+)
+
+OUTDIR <- file.path(
+  ROOT_DIR,
+  "outputs",
+  "Simulation_Outputs",
+  "04_current_phase_completion",
+  "current_phase_completion_output_final"
+)
+
+P_INPUT <- normalise_path(P_INPUT)
+OUTDIR  <- normalise_path(OUTDIR)
 
 # -------------------- GLOBALS --------------------
 CUT_YEAR   <- 2025L
@@ -67,7 +163,7 @@ required_sheets <- c(
   "failure_rates_smr"
 )
 
-available_sheets <- excel_sheets(P_INPUT)
+available_sheets <- readxl::excel_sheets(P_INPUT)
 missing_sheets <- setdiff(required_sheets, available_sheets)
 
 if (length(missing_sheets) > 0) {
@@ -230,7 +326,7 @@ miss_sc <- setdiff(req_scens, unique(dpf$scenario))
 if (length(miss_sc) > 0) stop("Missing scenarios in design_phase_failures: ", paste(miss_sc, collapse = ", "))
 
 for (sc in req_scens){
-  mm <- setdiff(req_phases, dpf %>% filter(scenario == sc) %>% pull(phase) %>% unique())
+  mm <- setdiff(req_phases, dpf %>% dplyr::filter(scenario == sc) %>% dplyr::pull(phase) %>% unique())
   if (length(mm) > 0) stop("Missing phases in design_phase_failures for ", sc, ": ", paste(mm, collapse = ", "))
 }
 
@@ -262,8 +358,8 @@ smr_master <- smr55_specs %>%
   dplyr::left_join(fail_rates, by = "design")
 
 miss_fail <- smr_master %>%
-  filter(is.na(lic_surv_baseline) | is.na(lic_surv_accel) | is.na(con_surv_baseline) | is.na(con_surv_accel)) %>%
-  pull(design)
+  dplyr::filter(is.na(lic_surv_baseline) | is.na(lic_surv_accel) | is.na(con_surv_baseline) | is.na(con_surv_accel)) %>%
+  dplyr::pull(design)
 
 if (length(miss_fail) > 0) stop("Missing failure rates for designs: ", paste(unique(miss_fail), collapse = ", "))
 
@@ -712,14 +808,14 @@ run_metadata <- tibble::tibble(
 )
 
 # -------------------- POST-RUN SUMMARY SWEEP --------------------
-mc_baseline <- mc_baseline_55 %>% left_join(smr55_specs, by = "design")
-mc_accel    <- mc_accel_55    %>% left_join(smr55_specs, by = "design")
+mc_baseline <- mc_baseline_55 %>% dplyr::left_join(smr55_specs, by = "design")
+mc_accel    <- mc_accel_55    %>% dplyr::left_join(smr55_specs, by = "design")
 design_summary <- summary_quantiles
 
 build_ts <- function(mc_obj, grouping_vars = NULL){
   
   df <- mc_obj %>%
-    mutate(
+    dplyr::mutate(
       foak_year_int = floor(foak_year),
       success = !is.na(foak_year_int)
     )
@@ -727,28 +823,28 @@ build_ts <- function(mc_obj, grouping_vars = NULL){
   results <- lapply(YEARS, function(y){
     
     tmp <- df %>%
-      filter(success, foak_year_int <= y)
+      dplyr::filter(success, foak_year_int <= y)
     
     if (!is.null(grouping_vars)){
       tmp <- tmp %>%
-        group_by(sim, across(all_of(grouping_vars))) %>%
-        summarise(total = n(), .groups = "drop")
+        dplyr::group_by(sim, dplyr::across(dplyr::all_of(grouping_vars))) %>%
+        dplyr::summarise(total = dplyr::n(), .groups = "drop")
     } else {
       tmp <- tmp %>%
-        group_by(sim) %>%
-        summarise(total = n(), .groups = "drop")
+        dplyr::group_by(sim) %>%
+        dplyr::summarise(total = dplyr::n(), .groups = "drop")
     }
     
     tmp$year <- y
     tmp
   })
   
-  ts_full <- bind_rows(results)
+  ts_full <- dplyr::bind_rows(results)
   
   if (!is.null(grouping_vars)){
     ts_full %>%
-      group_by(year, across(all_of(grouping_vars))) %>%
-      summarise(
+      dplyr::group_by(year, dplyr::across(dplyr::all_of(grouping_vars))) %>%
+      dplyr::summarise(
         P10  = safe_q(total, 0.10),
         P50  = safe_q(total, 0.50),
         P90  = safe_q(total, 0.90),
@@ -757,8 +853,8 @@ build_ts <- function(mc_obj, grouping_vars = NULL){
       )
   } else {
     ts_full %>%
-      group_by(year) %>%
-      summarise(
+      dplyr::group_by(year) %>%
+      dplyr::summarise(
         P10  = safe_q(total, 0.10),
         P50  = safe_q(total, 0.50),
         P90  = safe_q(total, 0.90),
@@ -771,22 +867,22 @@ build_ts <- function(mc_obj, grouping_vars = NULL){
 compute_2050 <- function(mc_obj, grouping_vars = NULL){
   
   df <- mc_obj %>%
-    mutate(success_2050 = !is.na(foak_year) & foak_year <= 2050)
+    dplyr::mutate(success_2050 = !is.na(foak_year) & foak_year <= 2050)
   
   if (!is.null(grouping_vars)){
     df <- df %>%
-      group_by(sim, across(all_of(grouping_vars))) %>%
-      summarise(total = sum(success_2050), .groups = "drop")
+      dplyr::group_by(sim, dplyr::across(dplyr::all_of(grouping_vars))) %>%
+      dplyr::summarise(total = sum(success_2050), .groups = "drop")
   } else {
     df <- df %>%
-      group_by(sim) %>%
-      summarise(total = sum(success_2050), .groups = "drop")
+      dplyr::group_by(sim) %>%
+      dplyr::summarise(total = sum(success_2050), .groups = "drop")
   }
   
   if (!is.null(grouping_vars)){
     df %>%
-      group_by(across(-c(sim, total))) %>%
-      summarise(
+      dplyr::group_by(dplyr::across(-c(sim, total))) %>%
+      dplyr::summarise(
         P10  = safe_q(total, 0.10),
         P50  = safe_q(total, 0.50),
         P90  = safe_q(total, 0.90),
@@ -795,7 +891,7 @@ compute_2050 <- function(mc_obj, grouping_vars = NULL){
       )
   } else {
     df %>%
-      summarise(
+      dplyr::summarise(
         P10  = safe_q(total, 0.10),
         P50  = safe_q(total, 0.50),
         P90  = safe_q(total, 0.90),
@@ -848,7 +944,7 @@ xlsx_contents <- list(
 writexl::write_xlsx(xlsx_contents, path = xlsx_path_run)
 writexl::write_xlsx(xlsx_contents, path = xlsx_path_latest)
 
-write_xlsx(
+writexl::write_xlsx(
   list(
     design_level_summary = design_summary,
     baseline_global = baseline_global,
@@ -865,7 +961,7 @@ write_xlsx(
   sweep_path_run
 )
 
-write_xlsx(
+writexl::write_xlsx(
   list(
     design_level_summary = design_summary,
     baseline_global = baseline_global,
@@ -882,7 +978,7 @@ write_xlsx(
   sweep_path_latest
 )
 
-write_xlsx(
+writexl::write_xlsx(
   list(
     baseline_global_2050 = baseline_2050_global,
     accelerated_global_2050 = accelerated_2050_global,
@@ -894,7 +990,7 @@ write_xlsx(
   snapshot_path_run
 )
 
-write_xlsx(
+writexl::write_xlsx(
   list(
     baseline_global_2050 = baseline_2050_global,
     accelerated_global_2050 = accelerated_2050_global,
@@ -978,7 +1074,10 @@ save(
 
 # -------------------- CONSOLE OUTPUT --------------------
 cat("\n==================== CURRENT-PHASE SURVIVAL COUNTERFACTUAL COMPLETE ====================\n")
+cat("Path mode:", PATH_MODE, "\n")
+cat("Repository root:", ROOT_DIR, "\n")
 cat("Input workbook:", P_INPUT, "\n")
+cat("Output directory:", OUTDIR, "\n")
 cat("Simulations:", SIMS, "\n")
 cat("Baseline rows:", nrow(mc_baseline_55), "\n")
 cat("Accelerated rows:", nrow(mc_accel_55), "\n")
