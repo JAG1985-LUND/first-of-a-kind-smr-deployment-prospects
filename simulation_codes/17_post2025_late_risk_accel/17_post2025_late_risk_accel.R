@@ -1,14 +1,20 @@
 # ============================================================
 # FUTURE DESIGN ADDITIONS — PROJECT PROGRESSION MONTE CARLO
-# ACCELERATED ONLY • LATE-STAGE RISK SENSITIVITY
-# JAG TESTER VERSION • 25 RUNS
+# MODULE 17: POST-2025 LATE-STAGE RISK SENSITIVITY
+# ACCELERATED ONLY
+# FAIL-GATED • FULL CLEAN SCRIPT • LOGNORMAL EVERYWHERE
 #
-# INPUT WORKBOOK:
-# post-2025_late_stage_risk_accelerated_sensitivity.xlsx
+# GitHub / submission version
+#
+# Required input workbook:
+# data/Simulation_Inputs/post-2025_late_stage_risk_accelerated_sensitivity.xlsx
+#
+# Clean output directory:
+# outputs/Simulation_Outputs/17_lsr_accel/
 #
 # LATE-STAGE RISK LOGIC:
 # Licensing and construction failure assumptions are read from
-# the late-stage-risk failure-rate inputs embedded in the workbook.
+# the late-stage-risk failure-rate inputs in the workbook.
 # ============================================================
 
 suppressPackageStartupMessages({
@@ -21,13 +27,107 @@ suppressPackageStartupMessages({
   library(tidyr)
 })
 
-# -------------------- PATHS --------------------
-P_INPUT <- "post-2025_late_stage_risk_accelerated_sensitivity.xlsx"
+# -------------------- REPOSITORY ROOT --------------------
+normalise_path <- function(x) {
+  normalizePath(x, winslash = "/", mustWork = FALSE)
+}
 
-OUTDIR <- "C:/Users/jo3151go/OneDrive - Lund University/Stage 1 Data Drop/SMR_FutureAdditions_Outputs"
+get_script_path <- function() {
+  cmd_args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- "--file="
+  hit <- grep(file_arg, cmd_args, value = TRUE)
+  
+  if (length(hit) > 0) {
+    return(normalise_path(sub(file_arg, "", hit[[1]])))
+  }
+  
+  for (frame in sys.frames()) {
+    if (!is.null(frame$ofile)) {
+      return(normalise_path(frame$ofile))
+    }
+  }
+  
+  NA_character_
+}
+
+parent_dirs <- function(start_dir) {
+  dirs <- character()
+  d <- normalise_path(start_dir)
+  
+  repeat {
+    dirs <- c(dirs, d)
+    parent <- dirname(d)
+    
+    if (identical(parent, d)) break
+    
+    d <- parent
+  }
+  
+  unique(dirs)
+}
+
+find_repo_root <- function(start_dirs = getwd()) {
+  target_file <- file.path(
+    "data",
+    "Simulation_Inputs",
+    "post-2025_late_stage_risk_accelerated_sensitivity.xlsx"
+  )
+  
+  start_dirs <- unique(start_dirs)
+  start_dirs <- start_dirs[!is.na(start_dirs)]
+  
+  for (start_dir in start_dirs) {
+    if (!dir.exists(start_dir)) next
+    
+    for (d in parent_dirs(start_dir)) {
+      if (file.exists(file.path(d, target_file))) {
+        return(normalise_path(d))
+      }
+    }
+  }
+  
+  stop(
+    paste0(
+      "Repository root not found.
+",
+      "Expected to find:
+",
+      target_file,
+      "
+Current working directory:
+",
+      getwd()
+    ),
+    call. = FALSE
+  )
+}
+
+SCRIPT_PATH <- get_script_path()
+SCRIPT_DIR <- if (!is.na(SCRIPT_PATH)) dirname(SCRIPT_PATH) else getwd()
+
+ROOT_DIR <- find_repo_root(c(getwd(), SCRIPT_DIR))
+PATH_MODE <- "github_repo_layout"
+
+# -------------------- PATHS --------------------
+P_INPUT <- file.path(
+  ROOT_DIR,
+  "data",
+  "Simulation_Inputs",
+  "post-2025_late_stage_risk_accelerated_sensitivity.xlsx"
+)
+
+OUTDIR <- file.path(
+  ROOT_DIR,
+  "outputs",
+  "Simulation_Outputs",
+  "17_lsr_accel"
+)
+
+P_INPUT <- normalise_path(P_INPUT)
+OUTDIR <- normalise_path(OUTDIR)
 
 # -------------------- GLOBALS --------------------
-SIMS       <- 25L
+SIMS       <- 10000L
 SEED       <- 42L
 SCENARIO   <- "accelerated"
 START_YEAR <- 2026L
@@ -42,11 +142,23 @@ if (!dir.exists(OUTDIR)) dir.create(OUTDIR, recursive = TRUE, showWarnings = FAL
 if (!dir.exists(OUTDIR)) stop("OUTDIR could not be created: ", OUTDIR)
 
 stamp   <- format(Sys.time(), "%Y%m%d_%H%M")
-RUN_TAG <- paste0("POST2025_ACC_LSR_MC", SIMS, "_", stamp)
-RUN_DIR <- file.path(OUTDIR, RUN_TAG)
+RUN_TAG <- paste0("p25_lsr_accel_mc_", SIMS)
+
+RUN_DIR <- file.path(
+  OUTDIR,
+  paste0("run_", SIMS, "_", stamp)
+)
+
+LATEST_DIR <- file.path(
+  OUTDIR,
+  "latest"
+)
 
 dir.create(RUN_DIR, recursive = TRUE, showWarnings = FALSE)
-if (!dir.exists(RUN_DIR)) stop("RUN_DIR could not be created: ", RUN_DIR)
+dir.create(LATEST_DIR, recursive = TRUE, showWarnings = FALSE)
+
+if (!dir.exists(RUN_DIR)) stop("RUN_DIR could not be created: ", RUN_DIR, call. = FALSE)
+if (!dir.exists(LATEST_DIR)) stop("LATEST_DIR could not be created: ", LATEST_DIR, call. = FALSE)
 
 # -------------------- HELPERS --------------------
 clean_names_simple <- function(x){
@@ -892,6 +1004,9 @@ run_metadata <- tibble(
     "sheet_failures_region_country",
     "sheet_cooling_type_failure",
     "run_directory",
+    "latest_directory",
+    "path_mode",
+    "repository_root",
     "run_tag",
     "counterfactual_type"
   ),
@@ -910,14 +1025,69 @@ run_metadata <- tibble(
     "failures_region_country",
     "cooling_type_failure",
     RUN_DIR,
+    LATEST_DIR,
+    PATH_MODE,
+    ROOT_DIR,
     RUN_TAG,
     "late_stage_risk"
   )
 )
 
+# -------------------- SAFE OUTPUT HELPERS --------------------
+ensure_dir <- function(path) {
+  dir.create(path, recursive = TRUE, showWarnings = FALSE)
+  if (!dir.exists(path)) {
+    stop("Directory could not be created: ", path, call. = FALSE)
+  }
+  invisible(path)
+}
+
+ensure_parent_dir <- function(path) {
+  ensure_dir(dirname(path))
+}
+
+safe_copy_file <- function(from, to) {
+  ensure_parent_dir(to)
+  ok <- file.copy(from, to, overwrite = TRUE)
+  if (!ok || !file.exists(to)) {
+    stop("File copy failed: ", to, call. = FALSE)
+  }
+  invisible(to)
+}
+
+safe_save_rds <- function(object, file) {
+  ensure_parent_dir(file)
+  saveRDS(object, file = file)
+  if (!file.exists(file)) {
+    stop("RDS save failed: ", file, call. = FALSE)
+  }
+  invisible(file)
+}
+
+ensure_dir(OUTDIR)
+ensure_dir(RUN_DIR)
+ensure_dir(LATEST_DIR)
+
 # -------------------- EXPORT --------------------
-xlsx_path_run <- file.path(RUN_DIR, paste0(RUN_TAG, ".xlsx"))
-rds_path_run  <- file.path(RUN_DIR, paste0(RUN_TAG, ".rds"))
+xlsx_path_run <- file.path(
+  RUN_DIR,
+  paste0("p25_lsr_accel_mc_", SIMS, "_", stamp, ".xlsx")
+)
+
+xlsx_path_latest <- file.path(
+  LATEST_DIR,
+  "p25_lsr_accel_mc_latest.xlsx"
+)
+
+rds_path_run <- file.path(
+  RUN_DIR,
+  paste0("p25_lsr_accel_bundle_", SIMS, "_", stamp, ".rds")
+)
+
+rds_path_latest <- file.path(
+  LATEST_DIR,
+  "p25_lsr_accel_bundle_latest.rds"
+)
 
 xlsx_contents <- list(
   accelerated_draws = mc_accel,
@@ -938,11 +1108,11 @@ xlsx_contents <- list(
   metadata          = run_metadata
 )
 
-tmp_xlsx <- tempfile(pattern = "post2025_acc_lsr_", fileext = ".xlsx")
-write_xlsx(xlsx_contents, path = tmp_xlsx)
+tmp_xlsx <- tempfile(pattern = "p25_lsr_accel_", fileext = ".xlsx")
+writexl::write_xlsx(xlsx_contents, path = tmp_xlsx)
 
-ok_copy <- file.copy(tmp_xlsx, xlsx_path_run, overwrite = TRUE)
-if (!ok_copy || !file.exists(xlsx_path_run)) stop("XLSX copy failed: ", xlsx_path_run)
+safe_copy_file(tmp_xlsx, xlsx_path_run)
+safe_copy_file(tmp_xlsx, xlsx_path_latest)
 
 model_bundle <- list(
   mc_accel = mc_accel,
@@ -972,15 +1142,24 @@ model_bundle <- list(
   run_metadata = run_metadata
 )
 
-saveRDS(model_bundle, file = rds_path_run)
-if (!file.exists(rds_path_run)) stop("RDS save failed: ", rds_path_run)
+safe_save_rds(model_bundle, rds_path_run)
+safe_save_rds(model_bundle, rds_path_latest)
 
 cat("\n================ POST-2025 ACCELERATED LATE-STAGE RISK MC COMPLETE ================\n")
+cat("Path mode:", PATH_MODE, "\n")
+cat("Input workbook:", P_INPUT, "\n")
+cat("Output directory:", OUTDIR, "\n")
+cat("Simulations:", SIMS, "\n")
 cat("Accelerated rows:", nrow(mc_accel), "\n")
 cat("RUN_DIR:\n", RUN_DIR, "\n")
-cat("XLSX:\n", xlsx_path_run, "\n")
-cat("RDS:\n", rds_path_run, "\n")
+cat("LATEST_DIR:\n", LATEST_DIR, "\n")
+cat("XLSX run:\n", xlsx_path_run, "\n")
+cat("XLSX latest:\n", xlsx_path_latest, "\n")
+cat("RDS run:\n", rds_path_run, "\n")
+cat("RDS latest:\n", rds_path_latest, "\n")
 cat("===================================================================================\n\n")
 
 print(xlsx_path_run)
+print(xlsx_path_latest)
 print(rds_path_run)
+print(rds_path_latest)
