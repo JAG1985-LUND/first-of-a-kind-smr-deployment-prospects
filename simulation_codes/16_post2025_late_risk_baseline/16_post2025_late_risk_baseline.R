@@ -10,7 +10,7 @@
 # data/Simulation_Inputs/post-2025_late_stage_risk_baseline_sensitivity.xlsx
 #
 # Clean output directory:
-# outputs/Simulation_Outputs/16_post2025_late_risk_baseline/post2025_late_risk_baseline_output_final/
+# outputs/Simulation_Outputs/16_lsr_baseline/
 #
 # Late-stage risk logic:
 # Construction failure assumptions are read from the
@@ -116,8 +116,7 @@ OUTDIR <- file.path(
   ROOT_DIR,
   "outputs",
   "Simulation_Outputs",
-  "16_post2025_late_risk_baseline",
-  "post2025_late_risk_baseline_output_final"
+  "16_lsr_baseline"
 )
 
 P_INPUT <- normalise_path(P_INPUT)
@@ -139,7 +138,7 @@ if (!dir.exists(OUTDIR)) dir.create(OUTDIR, recursive = TRUE, showWarnings = FAL
 if (!dir.exists(OUTDIR)) stop("OUTDIR could not be created: ", OUTDIR)
 
 stamp   <- format(Sys.time(), "%Y%m%d_%H%M")
-RUN_TAG <- paste0("post2025_late_risk_baseline_mc_", SIMS)
+RUN_TAG <- paste0("p25_lsr_baseline_mc_", SIMS)
 
 RUN_DIR <- file.path(
   OUTDIR,
@@ -1069,22 +1068,22 @@ ensure_dir(LATEST_DIR)
 # -------------------- EXPORT --------------------
 xlsx_path_run <- file.path(
   RUN_DIR,
-  paste0("post2025_late_risk_baseline_mc_", SIMS, "_", stamp, ".xlsx")
+  paste0("p25_lsr_baseline_mc_", SIMS, "_", stamp, ".xlsx")
 )
 
 xlsx_path_latest <- file.path(
   LATEST_DIR,
-  "post2025_late_risk_baseline_mc_latest.xlsx"
+  "p25_lsr_baseline_mc_latest.xlsx"
 )
 
 rds_path_run <- file.path(
   RUN_DIR,
-  paste0("post2025_late_risk_baseline_bundle_", SIMS, "_", stamp, ".rds")
+  paste0("p25_lsr_baseline_bundle_", SIMS, "_", stamp, ".rds")
 )
 
 rds_path_latest <- file.path(
   LATEST_DIR,
-  "post2025_late_risk_baseline_bundle_latest.rds"
+  "p25_lsr_baseline_bundle_latest.rds"
 )
 
 xlsx_contents <- list(
@@ -1106,7 +1105,7 @@ xlsx_contents <- list(
   metadata       = run_metadata
 )
 
-tmp_xlsx <- tempfile(pattern = "post2025_bas_lsr_", fileext = ".xlsx")
+tmp_xlsx <- tempfile(pattern = "p25_lsr_", fileext = ".xlsx")
 writexl::write_xlsx(xlsx_contents, path = tmp_xlsx)
 
 safe_copy_file(tmp_xlsx, xlsx_path_run)
