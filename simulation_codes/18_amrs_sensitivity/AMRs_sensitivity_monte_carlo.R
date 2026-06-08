@@ -30,41 +30,141 @@ suppressPackageStartupMessages({
   library(tidyr)
 })
 
-# -------------------- PATHS (GITHUB / LOCAL FOLDER) --------------------
-# Run this script from the folder containing the input workbook.
-# Required: AMRs_sensitivity_inputs.xlsx
-# Optional fallback files, used only if the relevant sheets are not in the main workbook:
-#   - design_phase_failures.xlsx
-#   - phase_rules.xlsx
+# -------------------- REPOSITORY ROOT / PATHS --------------------
+rm(list = ls())
+graphics.off()
 
-P_INPUTS <- "AMRs_sensitivity_inputs.xlsx"
-P_DPHASE_FALLBACK <- "design_phase_failures.xlsx"
-P_RULES_FALLBACK  <- "phase_rules.xlsx"
+normalise_path <- function(x) {
+  normalizePath(x, winslash = "/", mustWork = FALSE)
+}
 
-OUTDIR <- "."
+get_script_path <- function() {
+  cmd_args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- "--file="
+  hit <- grep(file_arg, cmd_args, value = TRUE)
+  if (length(hit) > 0) {
+    return(normalise_path(sub(file_arg, "", hit[[1]])))
+  }
+  
+  for (frame in sys.frames()) {
+    if (!is.null(frame$ofile)) {
+      return(normalise_path(frame$ofile))
+    }
+  }
+  
+  NA_character_
+}
 
-if (!file.exists(P_INPUTS)) {
-  stop("Input workbook not found: ", P_INPUTS, call. = FALSE)
+parent_dirs <- function(start_dir) {
+  dirs <- character()
+  d <- normalise_path(start_dir)
+  
+  repeat {
+    dirs <- c(dirs, d)
+    parent <- dirname(d)
+    if (identical(parent, d)) break
+    d <- parent
+  }
+  
+  unique(dirs)
+}
+
+find_repo_root <- function(start_dirs) {
+  target_file <- file.path("data", "Simulation_Inputs", "AMRs_sensitivity_inputs.xlsx")
+  start_dirs <- unique(start_dirs)
+  start_dirs <- start_dirs[!is.na(start_dirs)]
+  
+  for (start_dir in start_dirs) {
+    if (!dir.exists(start_dir)) next
+    
+    for (d in parent_dirs(start_dir)) {
+      if (file.exists(file.path(d, target_file))) {
+        return(normalise_path(d))
+      }
+    }
+  }
+  
+  stop(
+    paste0(
+      "Repository root not found.\n",
+      "Expected to find:\n",
+      target_file,
+      "\nCurrent working directory:\n",
+      getwd()
+    ),
+    call. = FALSE
+  )
+}
+
+SCRIPT_PATH <- get_script_path()
+SCRIPT_DIR <- if (!is.na(SCRIPT_PATH)) dirname(SCRIPT_PATH) else getwd()
+
+ROOT_DIR <- find_repo_root(c(getwd(), SCRIPT_DIR))
+PATH_MODE <- "github_repo_layout"
+
+P_INPUTS <- file.path(ROOT_DIR, "data", "Simulation_Inputs", "AMRs_sensitivity_inputs.xlsx")
+P_DPHASE_FALLBACK <- file.path(ROOT_DIR, "data", "Simulation_Inputs", "design_phase_failures.xlsx")
+P_RULES_FALLBACK  <- file.path(ROOT_DIR, "data", "Simulation_Inputs", "phase_rules.xlsx")
+
+OUTDIR <- file.path(ROOT_DIR, "outputs", "Simulation_Outputs", "18_amrs_sensitivity")
+
+P_INPUTS <- normalise_path(P_INPUTS)
+P_DPHASE_FALLBACK <- normalise_path(P_DPHASE_FALLBACK)
+P_RULES_FALLBACK <- normalise_path(P_RULES_FALLBACK)
+OUTDIR <- normalise_path(OUTDIR)
+
+ensure_dir <- function(path) {
+  if (!dir.exists(path)) {
+    dir.create(path, recursive = TRUE, showWarnings = FALSE)
+  }
+  if (!dir.exists(path)) {
+    stop("Directory could not be created: ", path, call. = FALSE)
+  }
+  invisible(path)
+}
+
+safe_write_xlsx <- function(x, path, ...) {
+  ensure_dir(dirname(path))
+  tmp <- tempfile(pattern = "xlsx_", fileext = ".xlsx")
+  writexl::write_xlsx(x, path = tmp, ...)
+  ok <- file.copy(tmp, path, overwrite = TRUE)
+  if (!ok || !file.exists(path)) {
+    stop("XLSX file copy failed: ", path, call. = FALSE)
+  }
+  invisible(path)
+}
+
+safe_save_rds <- function(object, file, ...) {
+  ensure_dir(dirname(file))
+  base::saveRDS(object, file = file, ...)
+  if (!file.exists(file)) {
+    stop("RDS save failed: ", file, call. = FALSE)
+  }
+  invisible(file)
 }
 
 # -------------------- GLOBALS --------------------
 CUT_YEAR   <- 2025L
 NEXT_FLOOR <- 2026.0
-SIMS       <- 10000L    # for a quick smoke test, temporarily set this to 25L
+SIMS       <- 10000L
 SEED       <- 42
 YEARS      <- 2026:2050
 RUN_TAG    <- "AMRS_SENSITIVITY"
 
 set.seed(SEED)
 
-if (!dir.exists(OUTDIR)) dir.create(OUTDIR, recursive = TRUE)
+if (!file.exists(P_INPUTS)) {
+  stop("Input workbook not found: ", P_INPUTS, call. = FALSE)
+}
+
+ensure_dir(OUTDIR)
 
 stamp <- format(Sys.time(), "%Y%m%d_%H%M")
-RUN_DIR    <- file.path(OUTDIR, paste0("SMR55_", RUN_TAG, "_", stamp))
-LATEST_DIR <- file.path(OUTDIR, paste0("SMR55_", RUN_TAG, "_latest"))
+RUN_DIR    <- file.path(OUTDIR, paste0("run_", SIMS, "_", stamp))
+LATEST_DIR <- file.path(OUTDIR, "latest")
 
-dir.create(RUN_DIR, showWarnings = FALSE, recursive = TRUE)
-dir.create(LATEST_DIR, showWarnings = FALSE, recursive = TRUE)
+ensure_dir(RUN_DIR)
+ensure_dir(LATEST_DIR)
 
 # -------------------- STANDARDISERS --------------------
 clean_colnames <- function(x){
@@ -973,8 +1073,8 @@ run_metadata <- tibble::tibble(
 )
 
 # -------------------- EXPORT MAIN EXCEL --------------------
-xlsx_path_run    <- file.path(RUN_DIR,    paste0("SMR55_AMRs_sensitivity_draws_", stamp, ".xlsx"))
-xlsx_path_latest <- file.path(LATEST_DIR, "SMR55_AMRs_sensitivity_draws_latest.xlsx")
+xlsx_path_run    <- file.path(RUN_DIR,    paste0("amrs_draws_", stamp, ".xlsx"))
+xlsx_path_latest <- file.path(LATEST_DIR, "amrs_draws_latest.xlsx")
 
 xlsx_contents <- list(
   accelerated_draws    = mc_accel,
@@ -985,23 +1085,23 @@ xlsx_contents <- list(
   run_metadata         = run_metadata
 )
 
-writexl::write_xlsx(xlsx_contents, path = xlsx_path_run)
-writexl::write_xlsx(xlsx_contents, path = xlsx_path_latest)
+safe_write_xlsx(xlsx_contents, path = xlsx_path_run)
+safe_write_xlsx(xlsx_contents, path = xlsx_path_latest)
 
 # -------------------- SAVE R OBJECTS --------------------
-saveRDS(mc_accel,             file = file.path(RUN_DIR,    paste0("mc_accelerated_AMRs_sensitivity_", stamp, ".rds")))
-saveRDS(summary_quantiles,    file = file.path(RUN_DIR,    paste0("summary_quantiles_AMRs_sensitivity_", stamp, ".rds")))
-saveRDS(summary_descriptives, file = file.path(RUN_DIR,    paste0("summary_descriptives_AMRs_sensitivity_", stamp, ".rds")))
-saveRDS(smr_master,           file = file.path(RUN_DIR,    paste0("smr_master_AMRs_sensitivity_", stamp, ".rds")))
-saveRDS(phase_params,         file = file.path(RUN_DIR,    paste0("phase_params_AMRs_sensitivity_", stamp, ".rds")))
-saveRDS(run_metadata,         file = file.path(RUN_DIR,    paste0("run_metadata_AMRs_sensitivity_", stamp, ".rds")))
+safe_save_rds(mc_accel,             file = file.path(RUN_DIR,    paste0("mc_accel_", stamp, ".rds")))
+safe_save_rds(summary_quantiles,    file = file.path(RUN_DIR,    paste0("sum_quant_", stamp, ".rds")))
+safe_save_rds(summary_descriptives, file = file.path(RUN_DIR,    paste0("sum_desc_", stamp, ".rds")))
+safe_save_rds(smr_master,           file = file.path(RUN_DIR,    paste0("smr_master_", stamp, ".rds")))
+safe_save_rds(phase_params,         file = file.path(RUN_DIR,    paste0("phase_params_", stamp, ".rds")))
+safe_save_rds(run_metadata,         file = file.path(RUN_DIR,    paste0("run_metadata_", stamp, ".rds")))
 
-saveRDS(mc_accel,             file = file.path(LATEST_DIR, "mc_accelerated_AMRs_sensitivity_latest.rds"))
-saveRDS(summary_quantiles,    file = file.path(LATEST_DIR, "summary_quantiles_AMRs_sensitivity_latest.rds"))
-saveRDS(summary_descriptives, file = file.path(LATEST_DIR, "summary_descriptives_AMRs_sensitivity_latest.rds"))
-saveRDS(smr_master,           file = file.path(LATEST_DIR, "smr_master_AMRs_sensitivity_latest.rds"))
-saveRDS(phase_params,         file = file.path(LATEST_DIR, "phase_params_AMRs_sensitivity_latest.rds"))
-saveRDS(run_metadata,         file = file.path(LATEST_DIR, "run_metadata_AMRs_sensitivity_latest.rds"))
+safe_save_rds(mc_accel,             file = file.path(LATEST_DIR, "mc_accel_latest.rds"))
+safe_save_rds(summary_quantiles,    file = file.path(LATEST_DIR, "sum_quant_latest.rds"))
+safe_save_rds(summary_descriptives, file = file.path(LATEST_DIR, "sum_desc_latest.rds"))
+safe_save_rds(smr_master,           file = file.path(LATEST_DIR, "smr_master_latest.rds"))
+safe_save_rds(phase_params,         file = file.path(LATEST_DIR, "phase_params_latest.rds"))
+safe_save_rds(run_metadata,         file = file.path(LATEST_DIR, "run_metadata_latest.rds"))
 
 model_bundle <- list(
   mc_accel             = mc_accel,
@@ -1019,8 +1119,8 @@ model_bundle <- list(
   run_metadata         = run_metadata
 )
 
-saveRDS(model_bundle, file = file.path(RUN_DIR,    paste0("SMR55_AMRs_sensitivity_bundle_", stamp, ".rds")))
-saveRDS(model_bundle, file = file.path(LATEST_DIR, "SMR55_AMRs_sensitivity_bundle_latest.rds"))
+safe_save_rds(model_bundle, file = file.path(RUN_DIR,    paste0("amrs_bundle_", stamp, ".rds")))
+safe_save_rds(model_bundle, file = file.path(LATEST_DIR, "amrs_bundle_latest.rds"))
 
 save(
   mc_accel,
@@ -1036,7 +1136,7 @@ save(
   param_map,
   design_list,
   run_metadata,
-  file = file.path(RUN_DIR, paste0("SMR55_AMRs_sensitivity_workspace_", stamp, ".RData"))
+  file = file.path(RUN_DIR, paste0("amrs_workspace_", stamp, ".RData"))
 )
 
 save(
@@ -1053,7 +1153,7 @@ save(
   param_map,
   design_list,
   run_metadata,
-  file = file.path(LATEST_DIR, "SMR55_AMRs_sensitivity_workspace_latest.RData")
+  file = file.path(LATEST_DIR, "amrs_workspace_latest.RData")
 )
 
 # -------------------- POST-RUN SUMMARY SWEEP --------------------
@@ -1161,13 +1261,13 @@ accelerated_2050_region  <- compute_2050(mc_accel_enriched, "region")
 accelerated_2050_country <- compute_2050(mc_accel_enriched, "country")
 accelerated_2050_cooling <- compute_2050(mc_accel_enriched, "cooling_type")
 
-master_sweep_path_run    <- file.path(RUN_DIR,    paste0("SMR55_AMRs_sensitivity_summary_", stamp, ".xlsx"))
-master_sweep_path_latest <- file.path(LATEST_DIR, "SMR55_AMRs_sensitivity_summary_latest.xlsx")
+master_sweep_path_run    <- file.path(RUN_DIR,    paste0("amrs_summary_", stamp, ".xlsx"))
+master_sweep_path_latest <- file.path(LATEST_DIR, "amrs_summary_latest.xlsx")
 
-snapshot_2050_path_run    <- file.path(RUN_DIR,    paste0("SMR55_AMRs_sensitivity_2050_", stamp, ".xlsx"))
-snapshot_2050_path_latest <- file.path(LATEST_DIR, "SMR55_AMRs_sensitivity_2050_latest.xlsx")
+snapshot_2050_path_run    <- file.path(RUN_DIR,    paste0("amrs_2050_", stamp, ".xlsx"))
+snapshot_2050_path_latest <- file.path(LATEST_DIR, "amrs_2050_latest.xlsx")
 
-writexl::write_xlsx(
+safe_write_xlsx(
   list(
     subgroup_designs    = subgroup_designs,
     design_level_summary = summary_quantiles,
@@ -1180,7 +1280,7 @@ writexl::write_xlsx(
   master_sweep_path_run
 )
 
-writexl::write_xlsx(
+safe_write_xlsx(
   list(
     subgroup_designs    = subgroup_designs,
     design_level_summary = summary_quantiles,
@@ -1193,7 +1293,7 @@ writexl::write_xlsx(
   master_sweep_path_latest
 )
 
-writexl::write_xlsx(
+safe_write_xlsx(
   list(
     accelerated_global_2050  = accelerated_2050_global,
     accelerated_oecd_2050    = accelerated_2050_oecd,
@@ -1204,7 +1304,7 @@ writexl::write_xlsx(
   snapshot_2050_path_run
 )
 
-writexl::write_xlsx(
+safe_write_xlsx(
   list(
     accelerated_global_2050  = accelerated_2050_global,
     accelerated_oecd_2050    = accelerated_2050_oecd,
@@ -1226,8 +1326,8 @@ cat("Summary sweep (run):\n", master_sweep_path_run, "\n")
 cat("Summary sweep (latest):\n", master_sweep_path_latest, "\n")
 cat("2050 snapshot (run):\n", snapshot_2050_path_run, "\n")
 cat("2050 snapshot (latest):\n", snapshot_2050_path_latest, "\n")
-cat("Bundle RDS (latest):\n", file.path(LATEST_DIR, "SMR55_AMRs_sensitivity_bundle_latest.rds"), "\n")
-cat("Workspace RData (latest):\n", file.path(LATEST_DIR, "SMR55_AMRs_sensitivity_workspace_latest.RData"), "\n")
+cat("Bundle RDS (latest):\n", file.path(LATEST_DIR, "amrs_bundle_latest.rds"), "\n")
+cat("Workspace RData (latest):\n", file.path(LATEST_DIR, "amrs_workspace_latest.RData"), "\n")
 cat("============================================================================\n\n")
 
 print(xlsx_path_run)
@@ -1236,4 +1336,4 @@ print(master_sweep_path_run)
 print(master_sweep_path_latest)
 print(snapshot_2050_path_run)
 print(snapshot_2050_path_latest)
-print(file.path(LATEST_DIR, "SMR55_AMRs_sensitivity_bundle_latest.rds"))
+print(file.path(LATEST_DIR, "amrs_bundle_latest.rds"))
