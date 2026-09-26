@@ -8,7 +8,7 @@ The repository provides the R scripts, source-data workbooks, simulation inputs 
 
 The repository was initially prepared for the original manuscript submission in June 2026 and was updated for the revised submission in September 2026.
 
-In the original submission, the two model scenarios were denoted **Baseline** and **Accelerated**. For the revised submission, these were renamed **Reference** and **FOAK-Proliferation**, respectively, to better reflect their analytical interpretation. Figures use the shortened label **Proliferation** where appropriate. The underlying scenario definitions and modelling logic are unchanged.
+In the original submission, the two model scenarios were denoted **Baseline** and **Accelerated**. For the revised submission, these were renamed (FOAK-)**Reference** and **Proliferation**, respectively, to better reflect their analytical interpretation. Figures use the shortened label **Proliferation** where appropriate. The underlying scenario definitions and modelling logic are unchanged.
 
 Files added or updated for the revised submission use the revised **Reference** and **FOAK-Proliferation** terminology. Earlier repository history may therefore contain the original **Baseline** and **Accelerated** terminology.
 
