@@ -4,7 +4,7 @@ R scripts used to generate Figures 1–9 of the revised manuscript.
 
 1. **Figure 1** — Global SMR design pipeline and attrition dynamics, 1984–2025.
 2. **Figure 2** — OECD and non-OECD SMR design pipelines and regional composition in 2025.
-3. **Figure 3** — Probabilistic framework for SMR project progression, pipeline evolution and FOAK deployment.
+3. **Figure 3** — Probabilistic framework for SMR project progression, pipeline evolution and FOAK deployment. Figure 3 is generated from separate scripts for panels a–d and panels e–f; `fig03_foak_framework.R` combines the resulting panel objects into the final figure.
 4. **Figure 4** — FOAK deployment timelines for SMR designs with vendor-stated targets.
 5. **Figure 5** — Gaps between vendor targets and modelled FOAK deployment timelines.
 6. **Figure 6** — Vendor-announced and modelled FOAK SMR deployment trajectories.
