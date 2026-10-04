@@ -43,7 +43,15 @@ A typical workflow is:
 
 ## Large simulation outputs
 
-Large Monte Carlo output files are not all stored directly in this repository. Selected outputs needed to document and reproduce the manuscript analyses are included here. Larger output bundles may be provided separately through the journal submission system or an archival data repository.
+Large Monte Carlo output files are not stored directly in this repository because of their size. Selected outputs required to document and reproduce the manuscript analyses are retained here.
+
+The larger Monte Carlo output files and sensitivity-analysis summaries are archived separately on Figshare:
+
+**Gordon et al., _Monte Carlo outputs and sensitivity-analysis summaries for First-of-a-Kind small modular reactor deployment prospects_.**
+
+https://doi.org/10.6084/m9.figshare.32576658
+
+The Figshare archive complements the simulation code, source data and figure-reproduction materials provided in this repository.
 
 ## Citation
 
