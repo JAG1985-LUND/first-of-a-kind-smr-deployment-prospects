@@ -61,11 +61,13 @@ This analysis is reported in Supplementary Figure S14.
 
 ### Regional FOAK competition
 
-`19_regional_foak_competition` extends the global FOAK framework by introducing regional competition effects, whereby progression probabilities are reduced as earlier FOAKs are deployed within the same regional market.
+Modules 19 and 20 extend the global FOAK framework by introducing regional competition effects, whereby progression probabilities are reduced as earlier FOAKs are deployed within the same regional market.
 
-This module underpins the regional FOAK competition sensitivity reported in **Figure 9** of the revised manuscript.
+`19_regional_foak_competition_active_pipeline` applies the regional-competition mechanism to the active 2025 pipeline. This provides the corresponding active-pipeline results under the Reference and Proliferation scenarios and establishes the effect of regional competition before post-2025 design additions are incorporated.
 
-The regional analysis is therefore an extension of the global simulation framework rather than a separate deployment model.
+`20_integrated_regional_foak_competition_proliferation` integrates the regional-competition mechanism with the wider Proliferation pipeline, including post-2025 design additions. This provides the full regional-competition sensitivity used for the Proliferation scenario.
+
+Together, Modules 19 and 20 underpin the regional FOAK competition sensitivity reported in **Figure 9** of the revised manuscript. The regional analysis is therefore an extension of the global simulation framework rather than a separate deployment model.
 
 ## Module index
 
@@ -87,7 +89,8 @@ The regional analysis is therefore an extension of the global simulation framewo
 16. `16_post2025_late_risk_baseline` — post-2025 late-stage risk sensitivity, Baseline/Reference scenario.
 17. `17_post2025_late_risk_accel` — post-2025 late-stage risk sensitivity, Accelerated/Proliferation scenario.
 18. `18_amrs_sensitivity` — AMR-specific late-stage risk sensitivity; Supplementary Figure S14.
-19. `19_regional_foak_competition` — regional FOAK competition sensitivity; revised Figure 9.
+19. `19_regional_foak_competition_active_pipeline` — regional FOAK competition applied to the active 2025 pipeline; contributes to revised Figure 9.
+20. `20_integrated_regional_foak_competition_proliferation` — integrated regional FOAK competition analysis for the wider Proliferation pipeline, including post-2025 design additions; contributes to revised Figure 9.
 
 ## Relationship between simulation modules and figure reproduction
 
