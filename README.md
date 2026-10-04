@@ -22,7 +22,7 @@ Files added or updated for the revised submission use the revised **Reference** 
 
 ## Simulation modules
 
-The `simulation_codes/` folder contains 18 numbered modules. These cover the reference project-progression and pipeline-evolution analyses, post-2025 design additions, active-pipeline sensitivity analyses, post-2025 sensitivity analyses and an AMR-specific late-stage-risk sensitivity.
+The simulation_codes/ folder contains 19 numbered modules. These cover the reference project-progression and pipeline-evolution analyses, post-2025 design additions, active-pipeline sensitivity analyses, post-2025 sensitivity analyses, an AMR-specific late-stage-risk sensitivity, and a regional FOAK competition sensitivity.
 
 Each simulation-code subfolder includes a dedicated `README.md` explaining the purpose of the module, required input workbook and expected outputs. The corresponding input workbooks are stored in `data/Simulation_Inputs/`.
 
