@@ -876,29 +876,12 @@ make_regional_panel <- function(
       limits = REGION_ORDER,
       drop = FALSE
     ) +
-    
-    scale_y_continuous(
-      
-      limits = c(
-        0,
-        10.5
-      ),
-      
-      breaks = c(
-        0,
-        2,
-        4,
-        6,
-        8,
-        10
-      ),
-      
+  
+       scale_y_continuous(
+      limits = c(0, 11.5),
+      breaks = c(0, 2, 4, 6, 8, 10),
       labels = hide_zero,
-      
-      expand = c(
-        0,
-        0
-      )
+      expand = c(0, 0)
     ) +
     
     labs(
